@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件测试版
 // @namespace    http://tampermonkey.net/
-// @version      1.6
+// @version      1.7
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -263,11 +263,11 @@ var deleteapiurl = '';
 
 // 更新API地址的函数
 function updateApiUrls() {
-    apiurl = `${apidomain}/api/add_torrent`;
-    fileapiurl = `${apidomain}/api/upload`;
-    deployapiurl = `${apidomain}/api/force_deploy`;
-    listapiurl = `${apidomain}/api/getTorrentList`;
-    deleteapiurl = `${apidomain}/api/del_torrent`;
+    apiurl = `${apidomain}/add_torrent`;
+    fileapiurl = `${apidomain}/upload`;
+    deployapiurl = `${apidomain}/force_deploy`;
+    listapiurl = `${apidomain}/getTorrentList`;
+    deleteapiurl = `${apidomain}/del_torrent`;
 }
 updateApiUrls();
 
@@ -360,7 +360,7 @@ function saveConfig(domain, key) {
 
 // 设置按钮处理函数
 function handleSettings() {
-    const input = prompt('请输入API配置（格式：域名|API密钥）\n例如：https://example.com|yourapikey123', `${apidomain}|${apikey}`);
+    const input = prompt('请输入API配置（格式：域名[/api]|API密钥）/api按照实际情况加 \n例如：https://example.com/api|yourapikey123', `${apidomain}|${apikey}`);
 
     if (input) {
         const parts = input.split('|');
