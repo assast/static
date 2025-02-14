@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件测试版
 // @namespace    http://tampermonkey.net/
-// @version      1.9
+// @version      1.10
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -246,6 +246,68 @@ style.textContent += `
   to { transform: translate(-50%, -50%) rotate(360deg); }
 }
 `;
+style.textContent += `
+/* 按钮容器样式 */
+#daemon-btn-container {
+    position: fixed;
+    right: 20px;
+    top: 250px;
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    cursor: move;
+    background: rgba(255,255,255,0.1);
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    transition: all 0.3s ease;
+}
+
+/* 单个按钮样式 */
+.daemon-btn {
+    padding: 12px 20px;
+    background: linear-gradient(145deg, #e3f2fd, #bbdefb);
+    color: #1976d2;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font: bold 14px 'Microsoft YaHei';
+    box-shadow: 0 2px 4px rgba(25,118,210,0.2);
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+/* 按钮悬停效果 */
+.daemon-btn:hover {
+    background: linear-gradient(145deg, #bbdefb, #90caf9);
+    box-shadow: 0 4px 8px rgba(25,118,210,0.3);
+    transform: translateY(-2px);
+}
+
+/* 拖拽手柄样式 */
+.drag-handle {
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 24px;
+    opacity: 0.5;
+    cursor: move;
+    background: 
+        linear-gradient(to bottom, 
+            #666 20%, 
+            transparent 20%, 
+            transparent 40%, 
+            #666 40%, 
+            #666 60%, 
+            transparent 60%, 
+            transparent 80%, 
+            #666 80%
+        );
+}
+`;
 document.head.appendChild(style);
 
 
@@ -274,73 +336,7 @@ updateApiUrls();
 var atBottom = false;
 // 页面加载完成后执行
 var site_url = decodeURI(window.location.href);
-if (site_url.match(/details.php\?id=\d+&uploaded=1/) || site_url.match(/torrents\/download_check/)) {
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
-}
-else if (site_url.match(/upload.php/)) {
-    addButton(1, '点击发布', () => {
-        const publishButton = document.querySelector('input[value="发布"]');
-        if (publishButton) {
-            publishButton.click();
-        } else {
-            addMsg('未找到发布按钮！');
-        }
-    });
-}
-// 添加按钮
-if (site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
-    addButton(1, '编辑种子', () => {
-        debugger;
-        const editButton = document.querySelector('a[href*="edit.php"]');
-        if (editButton) {
-            window.location.assign(editButton.href);
-        } else {
-            addMsg('未找到编辑按钮！');
-        }
-    });
-}
-if (site_url.match(/edit.php/)) {
-    addButton(1, '编辑完成', () => {
-        debugger;
-        const editButton = document.querySelector('input[type*="submit"]');
-        if (editButton) {
-            editButton.click()
-        } else {
-            addMsg('未找到编辑按钮！');
-        }
-    });
-}
-addButton(3, '推送链接', () => {
-    doPostJson(apiurl, { torrent_link: getUrl() });
-});
-addButton(2, '推送文件', () => {
-    getBlob(getUrl());
-});
-addButton(4, '队列->QB', () => {
-    doPostJson(deployapiurl, {});
-});
-/*
-addButton(7, '底部/顶部', () => {
-    if (!atBottom) {
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-        atBottom = true;
-    } else {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        atBottom = false;
-    }
-});*/
-addButton(5, '🔄 面板', fetchAndDisplayList);
-addButton(6, '⚙️ 设置', handleSettings);
-addButton(7, '📤 选择种子', () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.onchange = e => handleSeedUpload(e.target.files[0]);
-    input.click();
-});
+
 /* 种子处理核心 */
 async function handleSeedUpload(file) {
     const form = new FormData();
@@ -385,7 +381,67 @@ function handleSettings() {
         }
     }
 }
+// 创建可拖拽容器
+const btnContainer = document.createElement('div');
+btnContainer.id = 'daemon-btn-container';
 
+// 从存储加载位置
+const savedPosition = GM_getValue('btn_position', { x: 20, y: 250 });
+btnContainer.style.right = `${savedPosition.x}px`;
+btnContainer.style.top = `${savedPosition.y}px`;
+document.body.appendChild(btnContainer);
+
+// 拖拽功能实现
+let isDragging = false;
+let startX, startY;
+let initialX, initialY;
+let dragThreshold = 5; // 触发拖拽的阈值
+
+btnContainer.addEventListener('mousedown', function(e) {
+    startX = e.clientX;
+    startY = e.clientY;
+    initialX = parseFloat(this.style.right) || 20;
+    initialY = parseFloat(this.style.top) || 250;
+    isDragging = false;
+});
+
+document.addEventListener('mousemove', function(e) {
+    if (startX === undefined) return;
+    
+    const deltaX = Math.abs(e.clientX - startX);
+    const deltaY = Math.abs(e.clientY - startY);
+    
+    if (!isDragging && (deltaX > dragThreshold || deltaY > dragThreshold)) {
+        isDragging = true;
+        btnContainer.style.transition = 'none'; // 拖拽时禁用过渡效果
+    }
+    
+    if (isDragging) {
+        const newX = initialX + (startX - e.clientX);
+        const newY = initialY + (e.clientY - startY);
+        btnContainer.style.right = `${newX}px`;
+        btnContainer.style.top = `${newY}px`;
+    }
+});
+
+document.addEventListener('mouseup', function() {
+    if (isDragging) {
+        GM_setValue('btn_position', {
+            x: parseFloat(btnContainer.style.right),
+            y: parseFloat(btnContainer.style.top)
+        });
+        btnContainer.style.transition = 'all 0.3s ease';
+    }
+    startX = startY = undefined;
+    isDragging = false;
+});
+
+// 创建带拖拽手柄的按钮
+function createDragHandle() {
+    const handle = document.createElement('div');
+    handle.className = 'drag-handle';
+    return handle;
+}
 // 初始化函数
 function init() {
     // 等待目标元素加载完成
@@ -561,13 +617,15 @@ function addButton(idx, label, callback) {
     const btn = document.createElement('button');
     btn.className = 'daemon-btn';
     btn.textContent = label;
-    btn.style.top = `${60 * (idx - 1) + 200}px`;
-
-    // 添加事件监听
-    btn.addEventListener('click', callback);
-
-    // 悬停效果通过CSS实现
-    document.body.appendChild(btn);
+    
+    // 添加拖拽手柄
+    btn.appendChild(createDragHandle());
+    
+    btn.addEventListener('click', function(e) {
+        if (!isDragging) callback();
+    });
+    
+    btnContainer.appendChild(btn);
 }
 
 const container = createListContainer();
@@ -707,3 +765,71 @@ async function deleteTorrent(hash, md5, button) {
         button.classList.remove('loading');
     }
 }
+
+if (site_url.match(/details.php\?id=\d+&uploaded=1/) || site_url.match(/torrents\/download_check/)) {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+}
+else if (site_url.match(/upload.php/)) {
+    addButton(1, '点击发布', () => {
+        const publishButton = document.querySelector('input[value="发布"]');
+        if (publishButton) {
+            publishButton.click();
+        } else {
+            addMsg('未找到发布按钮！');
+        }
+    });
+}
+// 添加按钮
+if (site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
+    addButton(1, '编辑种子', () => {
+        debugger;
+        const editButton = document.querySelector('a[href*="edit.php"]');
+        if (editButton) {
+            window.location.assign(editButton.href);
+        } else {
+            addMsg('未找到编辑按钮！');
+        }
+    });
+}
+if (site_url.match(/edit.php/)) {
+    addButton(1, '编辑完成', () => {
+        debugger;
+        const editButton = document.querySelector('input[type*="submit"]');
+        if (editButton) {
+            editButton.click()
+        } else {
+            addMsg('未找到编辑按钮！');
+        }
+    });
+}
+addButton(3, '推送链接', () => {
+    doPostJson(apiurl, { torrent_link: getUrl() });
+});
+addButton(2, '推送文件', () => {
+    getBlob(getUrl());
+});
+addButton(4, '队列->QB', () => {
+    doPostJson(deployapiurl, {});
+});
+/*
+addButton(7, '底部/顶部', () => {
+    if (!atBottom) {
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        atBottom = true;
+    } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        atBottom = false;
+    }
+});*/
+addButton(5, '面板', fetchAndDisplayList);
+addButton(6, '设置', handleSettings);
+addButton(7, '选择种子', () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.onchange = e => handleSeedUpload(e.target.files[0]);
+    input.click();
+});
