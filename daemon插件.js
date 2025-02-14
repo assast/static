@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件测试版
 // @namespace    http://tampermonkey.net/
-// @version      1.8
+// @version      1.9
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -16,8 +16,8 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @license MIT
-// @downloadURL https://update.greasyfork.org/scripts/523711/daemon%E6%8F%92%E4%BB%B6%E6%B5%8B%E8%AF%95%E7%89%88.user.js
-// @updateURL https://update.greasyfork.org/scripts/523711/daemon%E6%8F%92%E4%BB%B6%E6%B5%8B%E8%AF%95%E7%89%88.meta.js
+// @downloadURL https://update.greasyfork.org/scripts/526842/daemon%E6%8F%92%E4%BB%B6%E6%B5%8B%E8%AF%95%E7%89%88.user.js
+// @updateURL https://update.greasyfork.org/scripts/526842/daemon%E6%8F%92%E4%BB%B6%E6%B5%8B%E8%AF%95%E7%89%88.meta.js
 // ==/UserScript==
 
 // 在脚本开头添加样式表
@@ -333,10 +333,20 @@ addButton(7, '底部/顶部', () => {
         atBottom = false;
     }
 });*/
-// 添加按钮
 addButton(5, '🔄 面板', fetchAndDisplayList);
 addButton(6, '⚙️ 设置', handleSettings);
-
+addButton(7, '📤 选择种子', () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.onchange = e => handleSeedUpload(e.target.files[0]);
+    input.click();
+});
+/* 种子处理核心 */
+async function handleSeedUpload(file) {
+    const form = new FormData();
+    form.append('file', file);
+    uploadTorrentDaemon(form);
+}
 // 配置管理部分
 function loadConfig() {
     const defaultDomain = 'https://xx.xx.xx:8443';
