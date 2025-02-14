@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SSD修改快速评论选项
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.3
 // @description  监控并修改快速评论下拉选项
 // @author       You
 // @include      http*://springsunday.net/details.php*
