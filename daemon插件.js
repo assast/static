@@ -360,7 +360,7 @@ function saveConfig(domain, key) {
 
 // 设置按钮处理函数
 function handleSettings() {
-    const input = prompt('请输入API配置（格式：域名[/api]|API密钥）/api按照实际情况加 \n例如：https://example.com/api|yourapikey123', `${apidomain}|${apikey}`);
+    const input = prompt('请输入API配置（格式：后端地址|API密钥）\n例如：https://example.com|yourapikey', `${apidomain}|${apikey}`);
 
     if (input) {
         const parts = input.split('|');
