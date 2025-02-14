@@ -551,7 +551,7 @@ function addButton(idx, label, callback) {
     const btn = document.createElement('button');
     btn.className = 'daemon-btn';
     btn.textContent = label;
-    btn.style.top = `${60 * (idx - 1) + 250}px`;
+    btn.style.top = `${60 * (idx - 1) + 200}px`;
 
     // 添加事件监听
     btn.addEventListener('click', callback);
