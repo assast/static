@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件测试版
 // @namespace    http://tampermonkey.net/
-// @version      1.10
+// @version      1.11
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -23,26 +23,6 @@
 // 在脚本开头添加样式表
 const style = document.createElement('style');
 style.textContent = `
-/* 通用按钮样式 */
-.daemon-btn {
-  position: fixed;
-  right: 90px;
-  z-index: 9999;
-  padding: 15px;
-  background: rgba(135, 206, 235, 0.3);
-  color: #000;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: 0.3s;
-  font: bold 16px Arial;
-  text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
-}
-
-.daemon-btn:hover {
-  background: rgba(0, 123, 255, 0.5);
-}
-
 /* 消息框样式 */
 .daemon-msg {
   position: fixed;
