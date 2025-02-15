@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件测试版
 // @namespace    http://tampermonkey.net/
-// @version      1.12
+// @version      1.13
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -563,7 +563,7 @@ function doPostJson(url, data) {
     GM_xmlhttpRequest({
         method: "POST",
         url: url,
-        data: data,
+        data: JSON.stringify(data),
         headers: {
             'Accept': 'application/json, text/plain, */*',
             'Content-Type': 'application/json;charset=UTF-8',
@@ -653,28 +653,7 @@ function addButton(idx, label, callback) {
 }
 // 定义获取列表并显示的函数
 function fetchAndDisplayList() {
-    debugger;
     doGet(listapiurl, refreshList);
-    // // 调用接口获取列表数据
-    // fetch(listapiurl, {
-    //     method: 'GET',
-    //     headers: {
-    //         'Authorization': 'Bearer ' + apikey,
-    //         'Accept': 'application/json',
-    //     },
-    // })
-    //     .then(response => response.json())
-    //     .then(data => {
-    //         if (data.code === 200) {
-    //             // 成功获取数据，显示在界面上
-    //             refreshList(JSON.parse(data.data));
-    //         } else {
-    //             addMsg('获取列表失败：' + JSON.stringify(data));
-    //         }
-    //     })
-    //     .catch(error => {
-    //         addMsg('获取列表异常：' + error.message);
-    //     });
 }
 // 强制刷新内容
 function refreshList(data) {
