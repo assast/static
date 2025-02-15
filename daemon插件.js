@@ -10,7 +10,6 @@
 // @match        https://kp.m-team.cc/detail/*
 // @match        https://*/torrents/*
 // @match        https://totheglory.im/t/*
-// @match        https://springsunday.net/*
 
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
