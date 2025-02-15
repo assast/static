@@ -7,10 +7,10 @@
 // @match        http*://*/upload.php*
 // @match        http*://*/details.php*
 // @match        http*://*/edit.php*
+// @match        http*://*/torrents.php*
 // @match        https://kp.m-team.cc/detail/*
 // @match        https://*/torrents/*
 // @match        https://totheglory.im/t/*
-
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
