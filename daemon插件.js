@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件测试版
 // @namespace    http://tampermonkey.net/
-// @version      1.11
+// @version      1.12
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -312,6 +312,7 @@ function updateApiUrls() {
     deleteapiurl = `${apidomain}/del_torrent`;
 }
 updateApiUrls();
+const container = createListContainer();
 
 var atBottom = false;
 // 页面加载完成后执行
@@ -432,7 +433,7 @@ function waitForElement(callback, maxTries = 30, interval = 1000) {
     let tries = 0;
 
     function check() {
-        debugger;
+        
 
         if (getUrl()) {
             callback();
@@ -469,7 +470,7 @@ function getUrl() {
 }
 // 主处理函数
 function processDownload() {
-    debugger;
+    
     // 检查是否同域
     try {
         const currentDomain = new URL(window.location.href).hostname;
@@ -535,7 +536,7 @@ function uploadTorrentDaemon(formData) {
         },
         onload: function (response) {
             try {
-                debugger;
+                
                 var result = JSON.parse(response.responseText);
                 if (result.code === 200) {
                     addMsg('推送成功：' + JSON.stringify(result));
@@ -558,25 +559,66 @@ function uploadTorrentDaemon(formData) {
     });
 }
 
-async function doPostJson(url, data) {
-    // 发送请求
-    await fetch(url, {
-        method: 'POST',
+function doPostJson(url, data) {
+    GM_xmlhttpRequest({
+        method: "POST",
+        url: url,
+        data: data,
         headers: {
             'Accept': 'application/json, text/plain, */*',
             'Content-Type': 'application/json;charset=UTF-8',
             'Authorization': 'Bearer ' + apikey  // 替换为实际的认证信息
         },
-        body: JSON.stringify(data)
-    }).then(response => response.json()).then(data => {
-        if (data.code === 200) {
-            addMsg('成功：' + JSON.stringify(data));
-        } else {
-            addMsg('失败：' + JSON.stringify(data));
+        onload: function (response) {
+            try {
+                
+                var result = JSON.parse(response.responseText);
+                if (result.code === 200) {
+                    addMsg('成功：' + JSON.stringify(result));
+                } else {
+                    addMsg('失败：' + JSON.stringify(result));
+                }
+            } catch (error) {
+                addMsg('解析响应失败: ' + error.message);
+            }
+        },
+        onerror: function (error) {
+            addMsg('失败: 网络错误');
         }
-    }).catch((error) => {
-        addMsg('异常：' + error + '\n详细信息：' + JSON.stringify(error));
     });
+}
+
+function doGet(url, callback) {
+    GM_xmlhttpRequest({
+        method: "GET",
+        url: url,
+        headers: {
+            'Accept': 'application/json, text/plain, */*',
+            'Authorization': 'Bearer ' + apikey  // 替换为实际的认证信息
+        },
+        onload: function (response) {
+            try {
+                var result = JSON.parse(response.responseText);
+                if (result.code === 200) {
+                    if (typeof callback === 'function') {
+                        callback(JSON.parse(result.data));
+                    }
+                } else {
+                    addMsg('失败：' + JSON.stringify(result));
+                }
+            } catch (error) {
+                addMsg('解析响应失败: ' + error.message);
+            }
+        },
+        onerror: function (error) {
+            addMsg('失败: 网络错误');
+        }
+    });
+}
+function checkContainer() {
+    if (!container){
+        container = createListContainer();
+    }
 }
 function addMsg(msg) {
     let msgBox = document.getElementById('daemon-msg');
@@ -593,48 +635,50 @@ function addMsg(msg) {
     msgBox.style.height = Math.min(msgBox.scrollHeight, 200) + 'px';
 }
 
+// 修改按钮创建方式，使用addEventListener
 function addButton(idx, label, callback) {
     const btn = document.createElement('button');
     btn.className = 'daemon-btn';
     btn.textContent = label;
     
-    // 添加拖拽手柄
-    btn.appendChild(createDragHandle());
-    
+    // 使用事件监听替代内联事件
     btn.addEventListener('click', function(e) {
-        if (!isDragging) callback();
+        if (!isDragging && typeof callback === 'function') {
+            callback();
+        }
     });
     
+    btn.appendChild(createDragHandle());
     btnContainer.appendChild(btn);
 }
-
-const container = createListContainer();
-
 // 定义获取列表并显示的函数
 function fetchAndDisplayList() {
-    // 调用接口获取列表数据
-    fetch(listapiurl, {
-        method: 'GET',
-        headers: {
-            'Authorization': 'Bearer ' + apikey,
-            'Accept': 'application/json',
-        },
-    })
-        .then(response => response.json())
-        .then(data => {
-            if (data.code === 200) {
-                // 成功获取数据，显示在界面上
-                refreshList(JSON.parse(data.data));
-            } else {
-                addMsg('获取列表失败：' + JSON.stringify(data));
-            }
-        })
-        .catch(error => {
-            addMsg('获取列表异常：' + error.message);
-        });
+    debugger;
+    doGet(listapiurl, refreshList);
+    // // 调用接口获取列表数据
+    // fetch(listapiurl, {
+    //     method: 'GET',
+    //     headers: {
+    //         'Authorization': 'Bearer ' + apikey,
+    //         'Accept': 'application/json',
+    //     },
+    // })
+    //     .then(response => response.json())
+    //     .then(data => {
+    //         if (data.code === 200) {
+    //             // 成功获取数据，显示在界面上
+    //             refreshList(JSON.parse(data.data));
+    //         } else {
+    //             addMsg('获取列表失败：' + JSON.stringify(data));
+    //         }
+    //     })
+    //     .catch(error => {
+    //         addMsg('获取列表异常：' + error.message);
+    //     });
 }
 // 强制刷新内容
 function refreshList(data) {
+    // checkContainer();
     if (container.classList.contains('visible')) {
         displayList(data); // 先关闭
         displayList(data); // 再重新打开
@@ -690,23 +734,22 @@ function displayList(list) {
 </table>
       </div>
     `;
+// 使用事件委托处理删除操作
+    container.addEventListener('click', async (e) => {
+        const deleteBtn = e.target.closest('.delete-btn');
+        if (deleteBtn) {
+            const row = deleteBtn.closest('tr');
+            const hash = row.dataset.hash;
+            const md5 = row.dataset.md5;
+            await deleteTorrent(hash, md5, deleteBtn);
+        }
 
-        // 绑定关闭事件
-        const closeBtn = container.querySelector('.close-btn');
-        closeBtn.addEventListener('click', () => {
+        const closeBtn = e.target.closest('.close-btn');
+        if (closeBtn) {
             container.classList.remove('visible');
-        });
-
-        // 在displayList函数最后添加：
-        container.addEventListener('click', async (e) => {
-            if (e.target.classList.contains('delete-btn')) {
-                const row = e.target.closest('tr');
-                const hash = row.dataset.hash;
-                const md5 = row.dataset.md5;
-                await deleteTorrent(hash, md5, e.target);
-            }
-        });
-    }
+        }
+    });
+}
 }
 
 // 简化的容器创建函数
@@ -766,7 +809,7 @@ else if (site_url.match(/upload.php/)) {
 // 添加按钮
 if (site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
     addButton(1, '编辑种子', () => {
-        debugger;
+        
         const editButton = document.querySelector('a[href*="edit.php"]');
         if (editButton) {
             window.location.assign(editButton.href);
@@ -777,7 +820,7 @@ if (site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
 }
 if (site_url.match(/edit.php/)) {
     addButton(1, '编辑完成', () => {
-        debugger;
+        
         const editButton = document.querySelector('input[type*="submit"]');
         if (editButton) {
             editButton.click()
