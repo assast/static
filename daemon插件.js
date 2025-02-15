@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件测试版
 // @namespace    http://tampermonkey.net/
-// @version      1.14
+// @version      1.15
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -300,6 +300,9 @@ style.textContent += `
   40% { transform: translate(5px, 0); }
   60% { transform: translate(-3px, 0); }
   80% { transform: translate(3px, 0); }
+}
+:not(:root) #daemon-btn-container {
+  display: none !important;
 }
 `;
 
