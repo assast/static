@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件测试版
 // @namespace    http://tampermonkey.net/
-// @version      1.15
+// @version      1.16
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -303,8 +303,6 @@ style.textContent += `
 }
 `;
 
-document.head.appendChild(style);
-
 
 // 初始化配置
 const { apidomain: configDomain, apikey: configKey } = loadConfig();
@@ -499,8 +497,25 @@ function createDragHandle() {
     return handle;
 }
 
-document.body.appendChild(btnContainer);
 // ==================== 拖拽 结束 ====================
+
+// ==================== 只添加到最外层 start ====================
+debugger;
+// 获取最外层文档的body
+if (window.self === window.top) {
+    const rootBody = document.body;
+    const rootHead = rootBody.ownerDocument.head;
+    if (!rootBody.querySelector('#daemon-btn-container')) {
+        rootBody.appendChild(btnContainer);
+    }
+    if (!rootHead.querySelector('#daemon-style')) {
+        style.id = 'daemon-style';
+        rootHead.appendChild(style);
+    }
+}
+
+// ==================== 只添加到最外层 end ====================
+
 
 // 初始化函数
 function init() {
