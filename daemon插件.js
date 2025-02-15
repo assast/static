@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件测试版
 // @namespace    http://tampermonkey.net/
-// @version      1.13
+// @version      1.14
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -288,6 +288,21 @@ style.textContent += `
         );
 }
 `;
+// 在样式表中添加边界限制提示
+style.textContent += `
+#daemon-btn-container.boundary-hit {
+  animation: boundary-shake 0.4s ease;
+}
+
+@keyframes boundary-shake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-5px, 0); }
+  40% { transform: translate(5px, 0); }
+  60% { transform: translate(-3px, 0); }
+  80% { transform: translate(3px, 0); }
+}
+`;
+
 document.head.appendChild(style);
 
 
@@ -362,21 +377,45 @@ function handleSettings() {
         }
     }
 }
+// ==================== 拖拽 开始 ====================
 // 创建可拖拽容器
 const btnContainer = document.createElement('div');
 btnContainer.id = 'daemon-btn-container';
 
-// 从存储加载位置
-const savedPosition = GM_getValue('btn_position', { x: 20, y: 250 });
-btnContainer.style.right = `${savedPosition.x}px`;
-btnContainer.style.top = `${savedPosition.y}px`;
-document.body.appendChild(btnContainer);
+// 修改初始化位置加载部分
+const savedPosition = GM_getValue('btn_position', null);
+const containerRect = btnContainer.getBoundingClientRect();
+const defaultPosition = { x: 20, y: 250 };
 
 // 拖拽功能实现
 let isDragging = false;
 let startX, startY;
 let initialX, initialY;
 let dragThreshold = 5; // 触发拖拽的阈值
+
+// 新增位置修正函数
+function validatePosition(pos) {
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const containerWidth = btnContainer.offsetWidth;
+    const containerHeight = btnContainer.offsetHeight;
+  
+    return {
+      x: Math.min(Math.max(pos.x, 0), viewportWidth - containerWidth - 10),
+      y: Math.min(Math.max(pos.y, 10), viewportHeight - containerHeight - 10)
+    };
+  }
+  
+  // 应用初始位置
+  if (savedPosition) {
+    const validPos = validatePosition(savedPosition);
+    btnContainer.style.right = `${validPos.x}px`;
+    btnContainer.style.top = `${validPos.y}px`;
+  } else {
+    btnContainer.style.right = `${defaultPosition.x}px`;
+    btnContainer.style.top = `${defaultPosition.y}px`;
+  }
+  
 
 btnContainer.addEventListener('mousedown', function(e) {
     startX = e.clientX;
@@ -386,24 +425,60 @@ btnContainer.addEventListener('mousedown', function(e) {
     isDragging = false;
 });
 
+
+// 修改拖拽事件处理
 document.addEventListener('mousemove', function(e) {
     if (startX === undefined) return;
-    
+  
     const deltaX = Math.abs(e.clientX - startX);
     const deltaY = Math.abs(e.clientY - startY);
     
     if (!isDragging && (deltaX > dragThreshold || deltaY > dragThreshold)) {
-        isDragging = true;
-        btnContainer.style.transition = 'none'; // 拖拽时禁用过渡效果
+      isDragging = true;
+      btnContainer.style.transition = 'none';
     }
     
     if (isDragging) {
-        const newX = initialX + (startX - e.clientX);
-        const newY = initialY + (e.clientY - startY);
-        btnContainer.style.right = `${newX}px`;
-        btnContainer.style.top = `${newY}px`;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const containerRect = btnContainer.getBoundingClientRect();
+      
+      // 计算边界限制
+      let newX = initialX + (startX - e.clientX);
+      let newY = initialY + (e.clientY - startY);
+      
+      // X轴边界检查
+      newX = Math.max(10, Math.min(newX, viewportWidth - containerRect.width - 10));
+      
+      // Y轴边界检查
+      newY = Math.max(10, Math.min(newY, viewportHeight - containerRect.height - 10));
+      
+      // 应用限制后的位置
+      btnContainer.style.right = `${newX}px`;
+      btnContainer.style.top = `${newY}px`;
+  
+      // 边界碰撞提示
+      if (newX <= 10 || newX >= viewportWidth - containerRect.width - 10) {
+        btnContainer.classList.add('boundary-hit');
+        setTimeout(() => btnContainer.classList.remove('boundary-hit'), 400);
+      }
     }
-});
+  });
+  
+  // 添加窗口resize监听
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      const currentX = parseFloat(btnContainer.style.right) || 20;
+      const currentY = parseFloat(btnContainer.style.top) || 250;
+      const validPos = validatePosition({x: currentX, y: currentY});
+      
+      btnContainer.style.transition = 'all 0.3s ease';
+      btnContainer.style.right = `${validPos.x}px`;
+      btnContainer.style.top = `${validPos.y}px`;
+    }, 200);
+  });
 
 document.addEventListener('mouseup', function() {
     if (isDragging) {
@@ -423,6 +498,10 @@ function createDragHandle() {
     handle.className = 'drag-handle';
     return handle;
 }
+
+document.body.appendChild(btnContainer);
+// ==================== 拖拽 结束 ====================
+
 // 初始化函数
 function init() {
     // 等待目标元素加载完成
