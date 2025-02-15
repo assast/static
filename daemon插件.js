@@ -301,9 +301,6 @@ style.textContent += `
   60% { transform: translate(-3px, 0); }
   80% { transform: translate(3px, 0); }
 }
-:not(:root) #daemon-btn-container {
-  display: none !important;
-}
 `;
 
 document.head.appendChild(style);
