@@ -41,9 +41,6 @@ payload:
   # - DOMAIN-SUFFIX,lemonhd.club
   - DOMAIN-SUFFIX,star-space.net
 
-  # 自建套cf
-  # - DOMAIN-SUFFIX,nc.lenoas.de
-
   # 不用梯子好像也能上的
   - DOMAIN-SUFFIX,imgdiet.com
 
