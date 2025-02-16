@@ -58,6 +58,8 @@ style.textContent = `
   width: 100%;
   border-collapse: collapse;
   margin-top: 10px;
+  color: #000;
+
 }
 
 .daemon-table th,
@@ -67,6 +69,8 @@ style.textContent = `
   text-align: left;
   font-size: 12px;
   vertical-align: top;
+  color: #000 !important; /* 新增强制黑色字体 */
+
 }
 
 .daemon-table th {
@@ -81,6 +85,12 @@ style.textContent = `
 
 .daemon-table tr:hover {
   background-color: #e9ecef;
+}
+
+/* 覆盖可能影响文字颜色的行样式 */
+.daemon-table tr:nth-child(even),
+.daemon-table tr:hover {
+  color: inherit !important;
 }
 
 .status-flag {
@@ -274,15 +284,15 @@ style.textContent += `
     height: 24px;
     opacity: 0.5;
     cursor: move;
-    background: 
-        linear-gradient(to bottom, 
-            #666 20%, 
-            transparent 20%, 
-            transparent 40%, 
-            #666 40%, 
-            #666 60%, 
-            transparent 60%, 
-            transparent 80%, 
+    background:
+        linear-gradient(to bottom,
+            #666 20%,
+            transparent 20%,
+            transparent 40%,
+            #666 40%,
+            #666 60%,
+            transparent 60%,
+            transparent 80%,
             #666 80%
         );
 }
@@ -396,13 +406,13 @@ function validatePosition(pos) {
     const viewportHeight = window.innerHeight;
     const containerWidth = btnContainer.offsetWidth;
     const containerHeight = btnContainer.offsetHeight;
-  
+
     return {
       x: Math.min(Math.max(pos.x, 0), viewportWidth - containerWidth - 10),
       y: Math.min(Math.max(pos.y, 10), viewportHeight - containerHeight - 10)
     };
   }
-  
+
   // 应用初始位置
   if (savedPosition) {
     const validPos = validatePosition(savedPosition);
@@ -412,7 +422,7 @@ function validatePosition(pos) {
     btnContainer.style.right = `${defaultPosition.x}px`;
     btnContainer.style.top = `${defaultPosition.y}px`;
   }
-  
+
 
 btnContainer.addEventListener('mousedown', function(e) {
     startX = e.clientX;
@@ -426,34 +436,34 @@ btnContainer.addEventListener('mousedown', function(e) {
 // 修改拖拽事件处理
 document.addEventListener('mousemove', function(e) {
     if (startX === undefined) return;
-  
+
     const deltaX = Math.abs(e.clientX - startX);
     const deltaY = Math.abs(e.clientY - startY);
-    
+
     if (!isDragging && (deltaX > dragThreshold || deltaY > dragThreshold)) {
       isDragging = true;
       btnContainer.style.transition = 'none';
     }
-    
+
     if (isDragging) {
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
       const containerRect = btnContainer.getBoundingClientRect();
-      
+
       // 计算边界限制
       let newX = initialX + (startX - e.clientX);
       let newY = initialY + (e.clientY - startY);
-      
+
       // X轴边界检查
       newX = Math.max(10, Math.min(newX, viewportWidth - containerRect.width - 10));
-      
+
       // Y轴边界检查
       newY = Math.max(10, Math.min(newY, viewportHeight - containerRect.height - 10));
-      
+
       // 应用限制后的位置
       btnContainer.style.right = `${newX}px`;
       btnContainer.style.top = `${newY}px`;
-  
+
       // 边界碰撞提示
       if (newX <= 10 || newX >= viewportWidth - containerRect.width - 10) {
         btnContainer.classList.add('boundary-hit');
@@ -461,7 +471,7 @@ document.addEventListener('mousemove', function(e) {
       }
     }
   });
-  
+
   // 添加窗口resize监听
   let resizeTimer;
   window.addEventListener('resize', () => {
@@ -470,7 +480,7 @@ document.addEventListener('mousemove', function(e) {
       const currentX = parseFloat(btnContainer.style.right) || 20;
       const currentY = parseFloat(btnContainer.style.top) || 250;
       const validPos = validatePosition({x: currentX, y: currentY});
-      
+
       btnContainer.style.transition = 'all 0.3s ease';
       btnContainer.style.right = `${validPos.x}px`;
       btnContainer.style.top = `${validPos.y}px`;
@@ -526,7 +536,7 @@ function waitForElement(callback, maxTries = 30, interval = 1000) {
     let tries = 0;
 
     function check() {
-        
+
 
         if (getUrl()) {
             callback();
@@ -563,7 +573,7 @@ function getUrl() {
 }
 // 主处理函数
 function processDownload() {
-    
+
     // 检查是否同域
     try {
         const currentDomain = new URL(window.location.href).hostname;
@@ -629,7 +639,7 @@ function uploadTorrentDaemon(formData) {
         },
         onload: function (response) {
             try {
-                
+
                 var result = JSON.parse(response.responseText);
                 if (result.code === 200) {
                     addMsg('推送成功：' + JSON.stringify(result));
@@ -664,7 +674,7 @@ function doPostJson(url, data) {
         },
         onload: function (response) {
             try {
-                
+
                 var result = JSON.parse(response.responseText);
                 if (result.code === 200) {
                     addMsg('成功：' + JSON.stringify(result));
@@ -733,14 +743,14 @@ function addButton(idx, label, callback) {
     const btn = document.createElement('button');
     btn.className = 'daemon-btn';
     btn.textContent = label;
-    
+
     // 使用事件监听替代内联事件
     btn.addEventListener('click', function(e) {
         if (!isDragging && typeof callback === 'function') {
             callback();
         }
     });
-    
+
     btn.appendChild(createDragHandle());
     btnContainer.appendChild(btn);
 }
@@ -881,7 +891,7 @@ else if (site_url.match(/upload.php/)) {
 // 添加按钮
 if (site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
     addButton(1, '编辑种子', () => {
-        
+
         const editButton = document.querySelector('a[href*="edit.php"]');
         if (editButton) {
             window.location.assign(editButton.href);
@@ -892,7 +902,7 @@ if (site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
 }
 if (site_url.match(/edit.php/)) {
     addButton(1, '编辑完成', () => {
-        
+
         const editButton = document.querySelector('input[type*="submit"]');
         if (editButton) {
             editButton.click()
