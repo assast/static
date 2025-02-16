@@ -48,3 +48,17 @@ payload:
   - DOMAIN-SUFFIX,imgdiet.com
 
   - IP-CIDR,108.181.17.0/8 #lap小鸡
+
+  - GEOSITE,github
+  - GEOSITE,twitter
+  - GEOSITE,youtube
+  - GEOSITE,google
+  - GEOSITE,google-cn
+  - GEOSITE,telegram
+  - GEOSITE,netflix
+  - GEOSITE,tiktok
+
+  - GEOIP,google
+  - GEOIP,netflix
+  - GEOIP,telegram
+  - GEOIP,twitter
