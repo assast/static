@@ -95,7 +95,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      1.0.0.50
+// @version      1.0.0.51
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -876,12 +876,12 @@ if (site_url.match(/^https:\/\/passthepopcorn.me\/torrents.php\?id=\d+&torrentid
 }
 // assast aither.cc转完自动下载
 if (site_url.match(/^https:\/\/(blutopia.cc|pt.hdpost.top|darkland.top|eiga.moi|hd-olimpo.club|aither.cc|fearnopeer.com)\/torrents\/download_check/)) {
-    window.open($('a[href*="torrents/download"]').has('i').attr('href'), '_blank');
+    window.open($('a[href*="torrents/download"]').has('i').attr('href'), '_self');
     return;
 }
-//if (site_url.match(/^https:\/\/totheglory.im\/details.php\?id=\d+&uploaded=1/)) {
-//    window.open($('a.index:contains(".torrent")').attr("href"), '_blank');
-//}
+if (site_url.match(/^https:\/\/totheglory.im\/details.php\?id=\d+&uploaded=1/)) {
+   window.open($('a.index:contains(".torrent")').attr("href"), '_self');
+}
 if (site_url.match(/^https:\/\/broadcasthe.net\/torrents.php\?id=\d+$/)) {
     if ($('a[href*="action=edit"]').length) {
         $('tr').has('a[href*="action=edit"]').map((index,e)=>{
