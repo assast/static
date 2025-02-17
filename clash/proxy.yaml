@@ -15,7 +15,7 @@ payload:
   - DOMAIN-SUFFIX,bulianglin.com
   - DOMAIN-SUFFIX,x.ai
   - DOMAIN-SUFFIX,hostevaluate.com
-  - DOMAIN-SUFFIX,nodeseek.com
+  # - DOMAIN-SUFFIX,nodeseek.com
   - DOMAIN-SUFFIX,nodeloc.com
   - DOMAIN-SUFFIX,gifyu.com
   - DOMAIN-SUFFIX,serv00.com
