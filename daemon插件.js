@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件测试版
 // @namespace    http://tampermonkey.net/
-// @version      1.18
+// @version      1.19
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -23,22 +23,48 @@
 const style = document.createElement('style');
 style.textContent = `
 /* 消息框样式 */
-.daemon-msg {
+.daemon-msg-success {
   position: fixed;
-  top: 10px;
+  top: 20px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 9999;
-  width: 500px;
-  padding: 5px;
-  background: rgba(255,255,255,0.8);
-  border: 1px solid rgba(204,204,204,0.5);
-  border-radius: 4px;
-  font: 12px/1.4 Arial;
-  resize: none;
-  overflow: auto;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  width: 800px;
+  padding: 15px;
+  background: #c5e09d;  /* 柔和浅绿色背景 */
+  border: 2px solid #688d47;  /* 深绿色边框 */
+  border-radius: 8px;
+  font: 16px/1.6 'Segoe UI', system-ui, sans-serif;  /* 增大字体 */
+  box-shadow: 0 4px 15px rgba(104,141,71,0.2);
+  backdrop-filter: blur(3px);
+  color: #000000;  /* 黑色文字 */
+  word-wrap: break-word; /* 允许长单词换行 */
+  overflow-wrap: break-word; /* 确保内容在边框宽度时换行 */
+  white-space: normal; /* 允许内容换行 */
+  resize: none; /* 禁止用户调整大小 */
 }
+/* 失败/错误样式 */
+.daemon-msg-fail {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  width: 800px;
+  padding: 15px;
+  background: #e09d9d; /* 浅红色背景 */
+  border: 2px solid #8d4747; /* 深红色边框 */
+  border-radius: 8px;
+  font: 16px/1.6 'Segoe UI', system-ui, sans-serif;  /* 增大字体 */
+  box-shadow: 0 4px 15px rgba(104,141,71,0.2);
+  backdrop-filter: blur(3px);
+  color: #000000;  /* 黑色文字 */
+  word-wrap: break-word; /* 允许长单词换行 */
+  overflow-wrap: break-word; /* 确保内容在边框宽度时换行 */
+  white-space: normal; /* 允许内容换行 */
+  resize: none; /* 禁止用户调整大小 */
+}
+
 /* 列表项样式 */
 .list-item {
   margin-bottom: 10px;
@@ -724,19 +750,32 @@ function checkContainer() {
     }
 }
 function addMsg(msg) {
+    const failKeywords = ['失败', '错误', '异常'];
     let msgBox = document.getElementById('daemon-msg');
 
+    // 如果元素不存在，则创建一个新的 textarea 元素
     if (!msgBox) {
         msgBox = document.createElement('textarea');
-        msgBox.className = 'daemon-msg';
-        msgBox.readOnly = true;
-        document.body.appendChild(msgBox);
+        msgBox.id = 'daemon-msg'; // 设置 id
+        msgBox.readOnly = true; // 设置为只读
+        document.body.appendChild(msgBox); // 添加到页面中
     }
 
+    // 设置 textarea 的内容为传入的 msg 参数
     msgBox.value = msg;
-    msgBox.style.height = 'auto';
-    msgBox.style.height = Math.min(msgBox.scrollHeight, 200) + 'px';
+
+    // 动态调整 textarea 的高度
+    msgBox.style.height = 'auto'; // 先设置为 auto，以便根据内容计算高度
+    msgBox.style.height = Math.min(msgBox.scrollHeight, 200) + 'px'; // 限制最大高度为 200px
+
+    // 根据 msg 内容是否包含“成功”来设置样式
+    if (failKeywords.some(keyword => msg.includes(keyword))) {
+        msgBox.className = 'daemon-msg-fail'; // 如果包含“失败”、“重试”或“错误”，设置类名为 daemon-msg-fail
+    } else {
+        msgBox.className = 'daemon-msg-success'; // 否则，设置类名为 daemon-msg
+    }
 }
+
 
 // 修改按钮创建方式，使用addEventListener
 function addButton(idx, label, callback) {
