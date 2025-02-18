@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件测试版
 // @namespace    http://tampermonkey.net/
-// @version      1.17
+// @version      1.18
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -902,13 +902,19 @@ if (site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
 }
 if (site_url.match(/edit.php/)) {
     addButton(1, '编辑完成', () => {
-
-        const editButton = document.querySelector('input[type*="submit"]');
-        if (editButton) {
-            editButton.click()
+        debugger;
+        if(site_url.match(/piggo.me/)){
+            const form = document.getElementById("compose");
+            form.submit();
+            return;
         } else {
-            addMsg('未找到编辑按钮！');
+            var editButton = document.querySelector('input[type*="submit"]');
+            if (editButton) {
+                editButton.click()
+                return;
+            }
         }
+        addMsg('未找到编辑按钮！');
     });
 }
 addButton(3, '推送链接', () => {
@@ -920,16 +926,7 @@ addButton(2, '推送文件', () => {
 addButton(4, '队列->QB', () => {
     doPostJson(deployapiurl, {});
 });
-/*
-addButton(7, '底部/顶部', () => {
-    if (!atBottom) {
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-        atBottom = true;
-    } else {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        atBottom = false;
-    }
-});*/
+
 addButton(5, '面板', fetchAndDisplayList);
 addButton(6, '设置', handleSettings);
 addButton(7, '选择种子', () => {
