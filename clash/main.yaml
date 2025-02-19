@@ -239,7 +239,7 @@ rule-providers:
 rules:
   - RULE-SET,AWAvenue-Ads,REJECT
   - RULE-SET,myproxy,默认代理
-  # - DOMAIN-SUFFIX,infini.money,默认代理
+  # - DOMAIN-SUFFIX,infini.money,默认代理1
   # - DOMAIN-SUFFIX,gitbook.io,默认代理
 
   - MATCH,DIRECT
