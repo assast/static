@@ -749,8 +749,9 @@ function addMsg(msg) {
     msgBox.value = msg;
 
     // 动态调整 textarea 的高度
-    msgBox.style.height = 'auto'; // 先设置为 auto，以便根据内容计算高度
-    msgBox.style.height = Math.min(msgBox.scrollHeight, 100) + 'px'; // 限制最大高度为 200px
+    // msgBox.style.height = 'auto'; // 先设置为 auto，以便根据内容计算高度
+    // msgBox.style.height = Math.min(msgBox.scrollHeight, 100) + 'px'; // 限制最大高度为 200px
+    msgBox.style.height = '100px'; // 先设置为 auto，以便根据内容计算高度
 
     // 根据 msg 内容是否包含“成功”来设置样式
     if (failKeywords.some(keyword => msg.includes(keyword))) {
