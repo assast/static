@@ -95,7 +95,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      1.0.0.52
+// @version      1.0.0.53
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -14915,7 +14915,7 @@ function auto_feed() {
                         }
                     }
                     if (raw_info.name.match(/HLG/)) { check_label(document.getElementsByName('tags[4][]'), '19'); }// assast 2024年12月25日12:11:43 HLG标签
-                    if ($('textarea[name="technical_info"]').val().match(/HDR Vivid/)) { check_label(document.getElementsByName('tags[4][]'), '18');  }// assast 2024年12月25日12:11:43 菁彩HDR标签
+                    if (($('textarea[name="technical_info"]').val() && $('textarea[name="technical_info"]').val().match(/HDR Vivid/))) { check_label(document.getElementsByName('tags[4][]'), '18');  }// assast 2024年12月25日12:11:43 菁彩HDR标签
 
                     break;
                 case 'LemonHD':
@@ -14991,7 +14991,7 @@ function auto_feed() {
                     if (labels.gy){ check_label(document.getElementsByName('tags[4][]'), '5'); }
                     if (labels.zz){ check_label(document.getElementsByName('tags[4][]'), '6'); }
                     if (labels.diy){ check_label(document.getElementsByName('tags[4][]'), '4'); }
-                    if (labels.hdr10 || labels.hdr10plus || raw_info.descr.match(/HDR Vivid/) || $('textarea[name="technical_info"]').val().match(/HDR Vivid/)) { check_label(document.getElementsByName('tags[4][]'), '7'); }
+                    if (labels.hdr10 || labels.hdr10plus || raw_info.descr.match(/HDR Vivid/) || ($('textarea[name="technical_info"]').val() && $('textarea[name="technical_info"]').val().match(/HDR Vivid/))) { check_label(document.getElementsByName('tags[4][]'), '7'); }
                     break;
                 case 'Oshen':
                     if (labels.gy){ check_label(document.getElementsByName('tags[4][]'), '5'); }
@@ -15043,7 +15043,7 @@ function auto_feed() {
                         $('input[name="tags[4][]"][value="21"]').attr('checked', true);
                     }
                     if (labels.db){ $('input[name="tags[4][]"][value="9"]').attr('checked', true); }
-                    if (labels.hdr10 || labels.hdr10plus || raw_info.descr.match(/HDR Vivid/) || $('textarea[name="technical_info"]').val().match(/HDR Vivid/)) { try { $('input[name="tags[4][]"][value="7"]').attr('checked', true); } catch(err) {}}
+                    if (labels.hdr10 || labels.hdr10plus || raw_info.descr.match(/HDR Vivid/) || ($('textarea[name="technical_info"]').val() && $('textarea[name="technical_info"]').val().match(/HDR Vivid/))) { try { $('input[name="tags[4][]"][value="7"]').attr('checked', true); } catch(err) {}}
                     if (raw_info.descr.match(/Dolby.*?Atmos/) || $('textarea[name="technical_info"]').val().match(/Dolby.*?Atmos/)) {
                         check_label(document.getElementsByName('tags[4][]'), '12');
                     }
@@ -15094,7 +15094,12 @@ function auto_feed() {
                     if (labels.yy){ $('input[name="tags[4][]"][value="15"]').attr('checked', true); }
                     if (labels.zz){ $('input[name="tags[4][]"][value="6"]').attr('checked', true); }
                     if (labels.diy){ $('input[name="tags[4][]"][value="4"]').attr('checked', true); }
-                    if (labels.hdr10 || labels.hdr10plus || raw_info.descr.match(/HDR Vivid/) || $('textarea[name="technical_info"]').val().match(/HDR Vivid/)) { try { $('input[name="tags[4][]"][value="7"]').attr('checked', true); } catch(err) {}}
+                    if (labels.hdr10 || labels.hdr10plus || raw_info.descr.match(/HDR Vivid/) || ($('textarea[name="technical_info"]').val() && $('textarea[name="technical_info"]').val().match(/HDR Vivid/))) { 
+                        try { 
+                            $('input[name="tags[4][]"][value="7"]').attr('checked', true); 
+                        } catch(err) {}
+                    }
+                    debugger;
                     if (labels.complete) { $('input[name="tags[4][]"][value="12"]').attr('checked', true); }
 
                     if (raw_info.descr.match(/mpls/i) && !labels.diy){
@@ -15180,7 +15185,7 @@ function auto_feed() {
                         check_label(document.getElementsByName('tags[4][]'), '11');
                     }
                     if (labels.complete){ check_label(document.getElementsByName('tags[4][]'), '14'); }
-                    if (labels.hdr10 || raw_info.descr.match(/HDR Vivid/) || $('textarea[name="technical_info"]').val().match(/HDR Vivid/)) { check_label(document.getElementsByName('tags[4][]'), '7');}
+                    if (labels.hdr10 || raw_info.descr.match(/HDR Vivid/) || ($('textarea[name="technical_info"]').val() && $('textarea[name="technical_info"]').val().match(/HDR Vivid/))) { check_label(document.getElementsByName('tags[4][]'), '7');}
                     if (labels.hdr10plus) {
                         // assast 青蛙居然hdr10+勾选了还让勾选hdr，那就按照他的来呗
                         check_label(document.getElementsByName('tags[4][]'), '7');
@@ -15260,7 +15265,7 @@ function auto_feed() {
                     if (raw_info.descr.match(/Dolby.*?Atmos/) || $('textarea[name="technical_info"]').val().match(/Dolby.*?Atmos/)) {
                         check_label(document.getElementsByName('tags[4][]'), '17');
                     }
-                    if (raw_info.descr.match(/HDR Vivid/) || $('textarea[name="technical_info"]').val().match(/HDR Vivid/)){
+                    if (raw_info.descr.match(/HDR Vivid/) || ($('textarea[name="technical_info"]').val() && $('textarea[name="technical_info"]').val().match(/HDR Vivid/))){
                         check_label(document.getElementsByName('tags[4][]'), '7');
                     }
                     break;
@@ -15275,7 +15280,7 @@ function auto_feed() {
                     } else if (raw_info.name.match(/[\d ]E\d+[ \.]/i)) {
                         check_label(document.getElementsByName('tags[4][]'), '19');
                     }
-                    if (labels.hdr10 || labels.hdr10plus || raw_info.descr.match(/HDR Vivid/) || $('textarea[name="technical_info"]').val().match(/HDR Vivid/)) { check_label(document.getElementsByName('tags[4][]'), '7');}
+                    if (labels.hdr10 || labels.hdr10plus || raw_info.descr.match(/HDR Vivid/) || ($('textarea[name="technical_info"]').val() && $('textarea[name="technical_info"]').val().match(/HDR Vivid/))) { check_label(document.getElementsByName('tags[4][]'), '7');}
                     if (raw_info.standard_sel == '4K') { check_label(document.getElementsByName('tags[4][]'), '11'); }
                     if (raw_info.descr.match(/mpls/i) || $('textarea[name="technical_info"]').val().match(/mpls/i)) {
                         check_label(document.getElementsByName('tags[4][]'), '9');
@@ -15287,7 +15292,7 @@ function auto_feed() {
                     if (labels.yy){ check_label(document.getElementsByName('tags[4][]'), '21'); }
                     if (labels.zz){ check_label(document.getElementsByName('tags[4][]'), '6'); }
                     if (labels.db) {check_label(document.getElementsByName('tags[4][]'), '13');}
-                    if (labels.hdr10plus || labels.hdr10 || raw_info.descr.match(/HDR Vivid/) || $('textarea[name="technical_info"]').val().match(/HDR Vivid/)) { check_label(document.getElementsByName('tags[4][]'), '7');}
+                    if (labels.hdr10plus || labels.hdr10 || raw_info.descr.match(/HDR Vivid/) || ($('textarea[name="technical_info"]').val() && $('textarea[name="technical_info"]').val().match(/HDR Vivid/))) { check_label(document.getElementsByName('tags[4][]'), '7');}
                     if (labels.complete) { check_label(document.getElementsByName('tags[4][]'), '19');}
                     if (labels.yz){ check_label(document.getElementsByName('tags[4][]'), '20'); }
                     if (raw_info.type == '剧集'){
