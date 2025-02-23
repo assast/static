@@ -95,7 +95,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      1.0.0.53
+// @version      1.0.0.54
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -14766,6 +14766,8 @@ function auto_feed() {
                     if (labels.db) { document.getElementById('dovi').checked=true; }
                     if (raw_info.name.match(/(\.| )3D(\.| )/)) { document.getElementById('3d').checked=true; }
                     if (raw_info.name.match(/HLG/)) { document.getElementById('hlg').checked=true; }
+                    if (labels.complete) { document.getElementById('pack').checked=true; }
+
                     break;
                 case 'OurBits':
                     // assast ob标签错误 20241215
