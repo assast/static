@@ -384,7 +384,6 @@ let apikey = configKey;
 
 // daemon接口配置
 var apiurl = '';
-var fileapiurl = '';
 var deployapiurl = '';
 var listapiurl = '';
 var deleteapiurl = '';
@@ -392,7 +391,6 @@ var deleteapiurl = '';
 // 更新API地址的函数
 function updateApiUrls() {
     apiurl = `${apidomain}/add_torrent`;
-    fileapiurl = `${apidomain}/upload`;
     deployapiurl = `${apidomain}/force_deploy`;
     listapiurl = `${apidomain}/get_info`;
     deleteapiurl = `${apidomain}/del_torrent`;
@@ -648,7 +646,7 @@ function processDownload() {
     }
 }
 
-function getFile(url) {
+function getFile(url, leechtorrent) {
     GM_xmlhttpRequest({
         method: "GET",
         url: url,
@@ -664,7 +662,7 @@ function getFile(url) {
                 // 创建 file
                 var file = new File([bytes], 'tmp.torrent', { type: 'application/x-bittorrent' });
                 // 上传文件
-                sendTorrentFile(file);
+                sendTorrentFile(file, leechtorrent);
             } catch (error) {
                 console.error('Error processing torrent:', error);
                 addMsg('处理种子文件失败: ' + error.message);
@@ -696,7 +694,7 @@ function sha256(str) {
     });
 }
 
-async function sendTorrentLink(torrentLink) {
+async function sendTorrentLink(torrentLink, leechtorrent) {
     const requestUUID = generateUUID();
     const timestamp = Math.floor(Date.now() / 1000).toString();
     const signature = await generateSignature(requestUUID, timestamp);
@@ -706,7 +704,8 @@ async function sendTorrentLink(torrentLink) {
         uuid: requestUUID,
         timestamp: timestamp,
         signature: signature,
-        forceadd: true
+        forceadd: true,
+        leechtorrent: leechtorrent || false
     };
 
     GM_xmlhttpRequest({
@@ -737,7 +736,7 @@ async function sendTorrentLink(torrentLink) {
     });
 }
 
-async function sendTorrentFile(torrentFile) {
+async function sendTorrentFile(torrentFile, leechtorrent) {
     const requestUUID = generateUUID();
     const timestamp = Math.floor(Date.now() / 1000).toString();
     const signature = await generateSignature(requestUUID, timestamp);
@@ -750,7 +749,8 @@ async function sendTorrentFile(torrentFile) {
             timestamp: timestamp,
             signature: signature,
             torrent_bytesio: torrentBase64,
-            forceadd: true
+            forceadd: true,
+            leechtorrent: leechtorrent || false
         };
 
         GM_xmlhttpRequest({
@@ -810,7 +810,11 @@ async function listTorrent() {
                 if (data.status === "success" && data.action === "GETINFO") {
                     const torrents = data.data.deployment_torrents_queue;
                     const tableHTML = generateTableHTML(torrents);
-                    displayTable(tableHTML);
+
+                    const pre_leech_torrents = data.data.pre_leech_torrents;
+                    const leechTableHTML = generatLeechTableHTML(pre_leech_torrents);
+                    
+                    displayTable(tableHTML, leechTableHTML);
                 } else {
                     addMsg('查询成功，但数据格式不正确', 'error');
                 }
@@ -826,7 +830,7 @@ function generateTableHTML(torrents) {
         <table class="daemon-table">
             <thead>
                 <tr>
-                    <th style="width:30%">名称</th>
+                    <th style="width:30%">发布列表</th>
                     <th>可用</th>
                     <th>添加时间</th>
                     <th>相关数据</th>
@@ -842,6 +846,34 @@ function generateTableHTML(torrents) {
                 <td>${torrent.isavailable ? '是' : '否'}</td>
                 <td>${new Date(torrent.added * 1000).toLocaleString()}</td>
                 <td>${generateRelatedDataTable(torrent.related_data)}</td>
+            </tr>
+        `;
+    });
+
+    tableHTML += `
+            </tbody>
+        </table>
+    `;
+
+    return tableHTML;
+}
+function generatLeechTableHTML(torrents) {
+    let tableHTML = `
+        <table class="daemon-table">
+            <thead>
+                <tr>
+                    <th style="width:70%">进货列表</th>
+                    <th>添加时间</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    torrents.forEach(torrent => {
+        tableHTML += `
+            <tr>
+                <td style="width:30%; word-wrap:break-word;">${torrent.torrent_name}</td>
+                <td>${new Date(torrent.added * 1000).toLocaleString()}</td>
             </tr>
         `;
     });
@@ -898,7 +930,7 @@ function generateRelatedDataTable(relatedData) {
 }
 
 
-function displayTable(tableHTML) {
+function displayTable(tableHTML, leechTableHTML) {
     const container = document.getElementById('daemon-list');
     if (!container) {
         const newContainer = createListContainer();
@@ -912,6 +944,9 @@ function displayTable(tableHTML) {
             <div class="list-content">
                 ${tableHTML}
             </div>
+            <div class="list-content">
+                ${leechTableHTML}
+            </div>
         `;
     } else {
         container.innerHTML = `
@@ -922,6 +957,9 @@ function displayTable(tableHTML) {
             </div>
             <div class="list-content">
                 ${tableHTML}
+            </div>
+            <div class="list-content">
+                ${leechTableHTML}
             </div>
         `;
         container.classList.add('visible');
@@ -962,77 +1000,6 @@ function displayTable(tableHTML) {
     });
 }
 
-function doPostJson(url, data) {
-    GM_xmlhttpRequest({
-        method: "POST",
-        url: url,
-        data: JSON.stringify(data),
-        headers: {
-            'Accept': 'application/json, text/plain, */*',
-            'Content-Type': 'application/json;charset=UTF-8',
-            'Authorization': 'Bearer ' + apikey  // 替换为实际的认证信息
-        },
-        onload: function (response) {
-            try {
-
-                var result = JSON.parse(response.responseText);
-                if (result.code === 200) {
-                    addMsg('成功：' + JSON.stringify(result));
-                } else {
-                    addMsg('失败：' + JSON.stringify(result));
-                }
-            } catch (error) {
-                addMsg('解析响应失败: ' + error.message);
-            }
-        },
-        onerror: function (error) {
-            addMsg('失败: 网络错误');
-        }
-    });
-}
-
-async function doGet(url, callback) {
-    const requestUUID = generateUUID();
-    const timestamp = Math.floor(Date.now() / 1000).toString();
-    const signature = await generateSignature(requestUUID, timestamp);
-
-    const payload = {
-        uuid: requestUUID,
-        timestamp: timestamp,
-        signature: signature
-    };
-
-    GM_xmlhttpRequest({
-        method: "GET",
-        url: url,
-        headers: {
-            'Accept': 'application/json, text/plain, */*',
-            'Authorization': 'Bearer ' + apikey  // 替换为实际的认证信息
-        },
-        onload: function (response) {
-            try {
-                var result = JSON.parse(response.responseText);
-                if (result.code === 200) {
-                    if (typeof callback === 'function') {
-                        callback(JSON.parse(result.data));
-                    }
-                } else {
-                    addMsg('失败：' + JSON.stringify(result));
-                }
-            } catch (error) {
-                addMsg('解析响应失败: ' + error.message);
-            }
-        },
-        onerror: function (error) {
-            addMsg('失败: 网络错误');
-        }
-    });
-}
-function checkContainer() {
-    if (!container) {
-        container = createListContainer();
-    }
-}
 function addMsg(msg, type) {
     let msgBox = document.getElementById('daemon-msg');
 
@@ -1070,7 +1037,8 @@ async function deleteRelatedData(hash, md5, tracker, addedTime) {
             uuid: requestUUID,
             timestamp: timestamp,
             signature: signature,
-            torrent_hash: hash
+            torrent_hash: hash,
+            nodropqbit: true
         };
 
         GM_xmlhttpRequest({
@@ -1117,11 +1085,9 @@ async function forcePushRelatedData(hash, md5, tracker, addedTime) {
     //     addMsg('强制推送失败: ' + error.message, 'error');
     // }
 }
-
-
-
+var idx = 0;
 // 修改按钮创建方式，使用addEventListener
-function addButton(idx, label, callback) {
+function addButton(label, callback) {
     const btn = document.createElement('button');
     btn.className = 'daemon-btn';
     btn.textContent = label;
@@ -1135,84 +1101,8 @@ function addButton(idx, label, callback) {
 
     btn.appendChild(createDragHandle());
     btnContainer.appendChild(btn);
+    idx ++;
 }
-
-// 强制刷新内容
-function refreshList(data) {
-    // checkContainer();
-    if (container.classList.contains('visible')) {
-        displayList(data); // 先关闭
-        displayList(data); // 再重新打开
-    } else {
-        displayList(data); // 直接打开
-    }
-}
-
-// 修改后的displayList函数
-function displayList(list) {
-    // 切换可见状态
-    container.classList.toggle('visible');
-
-    // 只有当容器可见时才更新内容
-    if (container.classList.contains('visible')) {
-        container.innerHTML = `
-      <div class="list-header">
-        <strong style="font-size:1.2em">种子监控面板</strong>
-        <span style="margin-left:15px">总数: ${list.length}</span>
-        <button class="close-btn" title="关闭">×</button>
-      </div>
-      <div class="list-content">
-<table class="daemon-table">
-  <thead>
-    <tr>
-      <th style="width:50%">名称</th>
-      <th style="width:20%">Tracker</th>
-      <th style="width:60px">状态</th>
-      <th style="width:30px">操作</th>
-    </tr>
-  </thead>
-  <tbody>
-    ${list.map(item => `
-      <tr data-hash="${item.torrent_hash}" data-md5="${item.torrent_md5}">
-        <td style="word-wrap:break-word">${item.torrent_name}</td>
-        <td>${item.torrent_tracker}</td>
-        <td>
-          <span class="status-flag ${item.ispushed ? 'true-flag' : 'false-flag'}">
-            Pushed: ${item.ispushed}
-          </span>
-          <span class="status-flag ${item.isavailable ? 'true-flag' : 'false-flag'}">
-            Available: ${item.isavailable}
-          </span>
-        </td>
-        <td>
-          <button class="delete-btn" data-hash="${escapeHTML(item.torrent_hash)}" data-md5="${escapeHTML(item.torrent_md5)}">
-   删除
-</button>
-        </td>
-      </tr>
-    `).join('')}
-  </tbody>
-</table>
-      </div>
-    `;
-        // 使用事件委托处理删除操作
-        container.addEventListener('click', async (e) => {
-            const deleteBtn = e.target.closest('.delete-btn');
-            if (deleteBtn) {
-                const row = deleteBtn.closest('tr');
-                const hash = row.dataset.hash;
-                const md5 = row.dataset.md5;
-                await deleteTorrent(hash, md5, deleteBtn);
-            }
-
-            const closeBtn = e.target.closest('.close-btn');
-            if (closeBtn) {
-                container.classList.remove('visible');
-            }
-        });
-    }
-}
-
 // 简化的容器创建函数
 function createListContainer() {
     const container = document.createElement('div');
@@ -1220,34 +1110,6 @@ function createListContainer() {
     container.className = 'daemon-list';
     document.body.appendChild(container);
     return container;
-}
-
-// 在生成HTML时对特殊字符进行转义
-const escapeHTML = str => str.replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-
-// 添加删除函数
-async function deleteTorrent(hash, md5, button) {
-    if (!confirm(`确定要删除该种子吗？\n哈希值：${hash}\nMD5：${md5}`)) return;
-
-    button.classList.add('loading');
-
-    try {
-        await doPostJson(deleteapiurl, {
-            torrent_hash: hash,
-            torrent_name: null,
-            torrent_md5: md5
-        });
-        fetchAndDisplayList()
-    } catch (error) {
-        console.error('删除失败:', error);
-        alert(`删除失败: ${error.message}`);
-    } finally {
-        button.classList.remove('loading');
-    }
 }
 
 if (site_url.match(/details.php\?id=\d+&uploaded=1/) || site_url.match(/torrents\/download_check/)) {
@@ -1258,7 +1120,7 @@ if (site_url.match(/details.php\?id=\d+&uploaded=1/) || site_url.match(/torrents
     }
 }
 else if (site_url.match(/upload.php/)) {
-    addButton(1, '点击发布', () => {
+    addButton('点击发布', () => {
         const publishButton = document.querySelector('input[value="发布"]');
         if (publishButton) {
             publishButton.click();
@@ -1269,7 +1131,7 @@ else if (site_url.match(/upload.php/)) {
 }
 // 添加按钮
 if (site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
-    addButton(1, '编辑种子', () => {
+    addButton('编辑种子', () => {
 
         const editButton = document.querySelector('a[href*="edit.php"]');
         if (editButton) {
@@ -1280,7 +1142,7 @@ if (site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
     });
 }
 if (site_url.match(/edit.php/)) {
-    addButton(1, '编辑完成', () => {
+    addButton('编辑完成', () => {
         debugger;
         if (site_url.match(/piggo.me/)) {
             const form = document.getElementById("compose");
@@ -1296,17 +1158,27 @@ if (site_url.match(/edit.php/)) {
         addMsg('未找到编辑按钮！');
     });
 }
-addButton(3, '推送链接', () => {
-    sendTorrentLink(getUrl())
-});
-addButton(2, '推送文件', () => {
+// addButton('推送链接', () => {
+//     sendTorrentLink(getUrl())
+// });
+addButton('发|推送种子', () => {
     getFile(getUrl());
 });
-addButton(4, '面板', listTorrent);
-addButton(5, '设置', handleSettings);
-addButton(6, '选择种子', () => {
+addButton('发|本地种子', () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.onchange = e => sendTorrentFile(e.target.files[0]);
     input.click();
 });
+addButton('进|推送种子', () => {
+    if (!confirm(`确定进货？`)) return;
+    getFile(getUrl(), true);
+});
+addButton('进|本地种子', () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.onchange = e => sendTorrentFile(e.target.files[0], true);
+    input.click();
+});
+addButton('面板', listTorrent);
+addButton('设置', handleSettings);
