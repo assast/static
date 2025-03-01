@@ -1416,13 +1416,19 @@ if(config.buttons.panel){
 addButton('设置', handleSettings);
 
 if(config.buttons.test){
-    addButton('获取信息', () => {
-        return get_media(); // 返回 Promise
+    addButton('获取媒体信息', () => {
+        return get_media('media'); // 返回 Promise
+    });
+    addButton('截图上传ptpimg', () => {
+        return get_media('pjietu'); // 返回 Promise
+    });
+    addButton('截图上传imgbox', () => {
+        return get_media('ijietu'); // 返回 Promise
     });
 }
 
 
-async function get_media() {
+async function get_media(command) {
     return new Promise((resolve, reject) => {
         const requestUUID = generateUUID();
         const timestamp = Math.floor(Date.now() / 1000).toString();
@@ -1441,8 +1447,7 @@ async function get_media() {
                     timestamp: timestamp,
                     signature: signature,
                     torrent_bytesio: torrentBase64,
-                    forceadd: true,
-                    leechtorrent: false
+                    command: command
                 };
 
                 GM_xmlhttpRequest({
