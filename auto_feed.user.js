@@ -147,55 +147,6 @@
     20230708：修复部分bug。适配RouSi(by shmt86)。
     20240526：适配新架构站点YemaPT(by lorentz)。
 */
-function addTorrentUrlInput() {
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.value = raw_info.torrent_url || '未获取到 torrent_url';
-    input.readOnly = true;
-    input.style.display = 'none';
-
-    input.id = 'tDownUrl'; // 添加id
-    input.style.position = 'fixed';
-    input.style.top = '20px';
-    input.style.left = '20px';
-    input.style.zIndex = '9999';
-    input.style.width = '500px';
-    input.style.padding = '5px';
-    input.style.border = '1px solid #ccc';
-    input.style.borderRadius = '4px';
-    input.style.backgroundColor = '#fff';
-    input.style.fontSize = '12px';
-
-    input.addEventListener('click', function() {
-        this.select();
-    });
-
-    document.body.appendChild(input);
-}
-
-// 检查 raw_info 是否存在的函数
-function checkRawInfo() {
-    if (typeof raw_info !== 'undefined' && raw_info.torrent_url) {
-        addTorrentUrlInput();
-        return true;
-    }
-    return false;
-}
-
-// 如果立即检查失败，则设置一个间隔检查
-if (!checkRawInfo()) {
-    const interval = setInterval(() => {
-        if (checkRawInfo()) {
-            clearInterval(interval);
-        }
-    }, 1000); // 每秒检查一次
-
-    // 60秒后停止检查
-    setTimeout(() => {
-        clearInterval(interval);
-    }, 60000);
-}
-
 
 var site_url = decodeURI(location.href);
 const TIMEOUT = 6000;
@@ -4215,6 +4166,14 @@ function addTorrent(url, name, forward_site, forward_announce) {
     if (url.match(/d8:announce/)) {
         build_blob_from_torrent(url, forward_announce, forward_site, "application/x-bittorrent", function(data){
             const blob = data.data;
+            
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                const torrentBase64 = btoa(event.target.result);
+                addTorrentInput('tBlob', torrentBase64);  
+            };
+            reader.readAsBinaryString(blob);
+
             if (data.name) {
                 name = data.name + '.torrent';
             }
@@ -4226,6 +4185,14 @@ function addTorrent(url, name, forward_site, forward_announce) {
     } else {
         getBlob(url, forward_announce, forward_site, "application/x-bittorrent", function(data){
             const blob = data.data;
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                const torrentBase64 = btoa(event.target.result);
+                addTorrentInput('tBlob', torrentBase64);  
+            };
+            reader.readAsBinaryString(blob);
+
             if (data.name) {
                 name = data.name.replace(/|™/g, "").trim().replace(/ /g, '.') + '.torrent';
             }
@@ -27376,16 +27343,17 @@ if (origin_site == 'ZHUQUE' && site_url.match(/^https:\/\/zhuque.in\/torrent\/in
     setTimeout(auto_feed, sleep_time);
 }
 
-function addTorrentUrlInput() {
+var idx = 0;
+function addTorrentInput(id, ivalue) {
     const input = document.createElement('input');
     input.type = 'text';
-    input.value = raw_info.torrent_url || '未获取到 torrent_url';
+    input.value = ivalue;
     input.readOnly = true;
-    input.style.display = 'none';
+    // input.style.display = 'none';
 
-    input.id = 'tDownUrl'; // 添加id
+    input.id = id; // 添加id
     input.style.position = 'fixed';
-    input.style.top = '20px';
+    input.style.top = (20 + idx * 30) + 'px';
     input.style.left = '20px';
     input.style.zIndex = '9999';
     input.style.width = '500px';
@@ -27395,11 +27363,8 @@ function addTorrentUrlInput() {
     input.style.backgroundColor = '#fff';
     input.style.fontSize = '12px';
 
-    input.addEventListener('click', function() {
-        this.select();
-    });
-
     document.body.appendChild(input);
+    idx ++;
 }
 
 // 检查 raw_info 是否存在的函数
@@ -27408,7 +27373,8 @@ function checkRawInfo() {
         if(origin_site == 'MTeam' && raw_info.torrent_url.match(/detail/)) {
             return false;
         }
-        addTorrentUrlInput();
+        addTorrentInput('tDownUrl', raw_info.torrent_url || '未获取到 torrent_url');
+
         return true;
     }
     return false;
@@ -27420,7 +27386,7 @@ if (!checkRawInfo()) {
         if (checkRawInfo()) {
             clearInterval(interval);
         }
-    }, 1000); // 每秒检查一次
+    }, 500); // 每秒检查一次
 
     // 60秒后停止检查
     setTimeout(() => {

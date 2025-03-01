@@ -1411,3 +1411,71 @@ if(config.buttons.panel){
     });
 }
 addButton('设置', handleSettings);
+
+if(config.buttons.test){
+    addButton('获取信息', () => {
+        return getInfo(); // 返回 Promise
+    });
+}
+
+
+async function getInfo() {
+    return new Promise((resolve, reject) => {
+        const requestUUID = generateUUID();
+        const timestamp = Math.floor(Date.now() / 1000).toString();
+
+        generateSignature(requestUUID, timestamp)
+            .then((signature) => {
+                debugger;
+                const element = document.getElementById('tBlob');
+                const torrentBase64 =  element.value;
+                const payload = {
+                    uuid: requestUUID,
+                    timestamp: timestamp,
+                    signature: signature,
+                    torrent_bytesio: torrentBase64,
+                    forceadd: true,
+                    leechtorrent: false
+                };
+
+                GM_xmlhttpRequest({
+                    method: "POST",
+                    url: apiurl,
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    data: JSON.stringify(payload),
+                    onload: function (response) {
+                        console.log(response.responseText);
+                        const result = JSON.parse(response.responseText);
+                        if (response.status == 200 && result.status === 'success') {
+                            const msg = [
+                                '种子文件推送成功',
+                                '种 子 名: ' + result.torrent_name,
+                                'tracker: ' + result.tracker
+                            ].join('\n');
+                            addMsg(msg);
+                            resolve();
+                        } else {
+                            const msg = [
+                                '种子文件推送失败',
+                                '失败原因: ' + result.message
+                            ].join('\n');
+                            addMsg(msg, 'error');
+                            reject(result.message);
+                        }
+                    },
+                    onerror: function (error) {
+                        console.error('上传失败:', error);
+                        addMsg('上传种子文件失败');
+                        reject(error);
+                    }
+                });
+            })
+            .catch((error) => {
+                console.error('生成签名失败:', error);
+                addMsg('生成签名失败: ' + error.message, 'error');
+                reject(error);
+            });
+    });
+}
