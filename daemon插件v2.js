@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v2
 // @namespace    http://tampermonkey.net/
-// @version      2.1
+// @version      2.2
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -378,70 +378,148 @@ style.textContent += `
 }
 
 `;
-
-// 初始化配置
-const { apidomain: configDomain, apikey: configKey } = loadConfig();
-let apidomain = configDomain;
-let apikey = configKey;
-
 // daemon接口配置
 var apiurl = '';
 var deployapiurl = '';
 var listapiurl = '';
 var deleteapiurl = '';
 
-// 更新API地址的函数
-function updateApiUrls() {
-    apiurl = `${apidomain}/add_torrent`;
-    deployapiurl = `${apidomain}/force_deploy`;
-    listapiurl = `${apidomain}/get_info`;
-    deleteapiurl = `${apidomain}/del_torrent`;
-}
-updateApiUrls();
+// 初始化配置
+var config = {};
+initconfig();
+
 const container = createListContainer();
 
 var atBottom = false;
 // 页面加载完成后执行
 var site_url = decodeURI(window.location.href);
 
+function initconfig() {
+    config = loadConfig();
+    debugger;
+    apiurl = `${config.apidomain}/add_torrent`;
+    deployapiurl = `${config.apidomain}/force_deploy`;
+    listapiurl = `${config.apidomain}/get_info`;
+    deleteapiurl = `${config.apidomain}/del_torrent`;
+}
 // 配置管理部分
 function loadConfig() {
-    const defaultDomain = 'https://xx.xx.xx:8443';
-    const defaultKey = 'defaultKey';
+    const defaultConfig = {
+        apidomain: 'https://xx.xx.xx:8443',
+        apikey: 'defaultKey',
+        buttons: {
+            panel: true,
+            leechtorrent: true
+        }
+    };
 
-    // 从存储加载或使用默认值
-    let saved = GM_getValue('daemon_config', '');
-    if (saved.includes('|')) {
-        const [domain, key] = saved.split('|');
-        return {
-            apidomain: domain || defaultDomain,
-            apikey: key || defaultKey
-        };
+    const saved = GM_getValue('daemon_config', '');
+    if (saved) {
+        try {
+            return JSON.parse(saved);
+        } catch (error) {
+            console.error('配置解析失败，使用默认配置:', error);
+            return defaultConfig;
+        }
     }
-    return { apidomain: defaultDomain, apikey: defaultKey };
+    return defaultConfig;
 }
 
-function saveConfig(domain, key) {
-    GM_setValue('daemon_config', `${domain}|${key}`);
+function saveConfig(config) {
+    GM_setValue('daemon_config', JSON.stringify(config));
 }
+
 
 // 设置按钮处理函数
 function handleSettings() {
-    const input = prompt('请输入API配置（格式：后端地址|API密钥）\n例如：https://example.com|yourapikey', `${apidomain}|${apikey}`);
+    // 创建弹出框容器
+    const modal = document.createElement('div');
+    modal.style.position = 'fixed';
+    modal.style.top = '50%';
+    modal.style.left = '50%';
+    modal.style.transform = 'translate(-50%, -50%)';
+    modal.style.backgroundColor = '#fff';
+    modal.style.padding = '20px';
+    modal.style.borderRadius = '8px';
+    modal.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.1)';
+    modal.style.zIndex = '10000';
+    modal.style.width = '400px';
 
-    if (input) {
-        const parts = input.split('|');
-        if (parts.length === 2) {
-            apidomain = parts[0].trim();
-            apikey = parts[1].trim();
-            saveConfig(apidomain, apikey);
-            updateApiUrls();
-            addMsg('配置已保存！');
-        } else {
-            addMsg('输入格式错误，请使用 域名|API密钥 格式');
+    // 创建标题
+    const title = document.createElement('h3');
+    title.textContent = '配置设置';
+    title.style.marginTop = '0';
+    modal.appendChild(title);
+
+    // 创建配置输入框
+    const textarea = document.createElement('textarea');
+    textarea.style.width = '100%';
+    textarea.style.height = '200px';
+    textarea.style.marginBottom = '10px';
+    textarea.style.padding = '8px';
+    textarea.style.border = '1px solid #ddd';
+    textarea.style.borderRadius = '4px';
+    textarea.style.fontFamily = 'Arial, sans-serif';
+    textarea.style.fontSize = '14px';
+
+    // 加载当前配置
+    textarea.value = JSON.stringify(config, null, 2);
+    modal.appendChild(textarea);
+
+    // 创建保存按钮
+    const saveButton = document.createElement('button');
+    saveButton.textContent = '保存';
+    saveButton.style.padding = '8px 16px';
+    saveButton.style.backgroundColor = '#007bff';
+    saveButton.style.color = '#fff';
+    saveButton.style.border = 'none';
+    saveButton.style.borderRadius = '4px';
+    saveButton.style.cursor = 'pointer';
+    saveButton.style.marginRight = '10px';
+
+    // 创建取消按钮
+    const cancelButton = document.createElement('button');
+    cancelButton.textContent = '取消';
+    cancelButton.style.padding = '8px 16px';
+    cancelButton.style.backgroundColor = '#dc3545';
+    cancelButton.style.color = '#fff';
+    cancelButton.style.border = 'none';
+    cancelButton.style.borderRadius = '4px';
+    cancelButton.style.cursor = 'pointer';
+
+    // 保存配置
+    saveButton.addEventListener('click', () => {
+        try {
+            const config = JSON.parse(textarea.value);
+
+            // 保存配置到存储
+            saveConfig(config);
+            initconfig();
+            addMsg('配置已保存！请刷新界面');
+
+            // 关闭弹出框
+            document.body.removeChild(modal);
+        } catch (error) {
+            addMsg('配置格式错误，请检查 JSON 格式', 'error');
         }
-    }
+    });
+
+    // 取消操作
+    cancelButton.addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+
+    // 添加按钮到弹出框
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.textAlign = 'right';
+    buttonContainer.appendChild(saveButton);
+    buttonContainer.appendChild(cancelButton);
+    modal.appendChild(buttonContainer);
+
+    // 添加弹出框到页面
+    document.body.appendChild(modal);
 }
+
 // ==================== 拖拽 开始 ====================
 // 创建可拖拽容器
 const btnContainer = document.createElement('div');
@@ -690,7 +768,7 @@ function generateUUID() {
 }
 
 async function generateSignature(uuid, timestamp) {
-    const signString = `${apikey}${uuid}${timestamp}`;
+    const signString = `${config.apikey}${uuid}${timestamp}`;
     return sha256(signString);
 }
 
@@ -1239,16 +1317,16 @@ if (site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
 if (site_url.match(/edit.php/)) {
     addButton('编辑完成', () => {
         debugger;
-        if (site_url.match(/piggo.me/)) {
-            const form = document.getElementById("compose");
-            form.submit();
+        const editButton = document.querySelector('input[id="qr"]');
+        if(!editButton){
+            editButton = document.querySelector('input[value="编辑"]');
+        }
+        if(!editButton){
+            editButton = document.querySelector('input[type*="submit"]');
+        }
+        if (editButton) {
+            editButton.click();
             return;
-        } else {
-            var editButton = document.querySelector('input[type*="submit"]');
-            if (editButton) {
-                editButton.click()
-                return;
-            }
         }
         addMsg('未找到编辑按钮！');
     });
@@ -1290,43 +1368,46 @@ addButton('发|本地种子', () => {
         input.click();
     });
 });
-
-addButton('进|推送种子', () => {
-    if (!confirm(`确定进货？`)) return new Promise((resolve) => { });
-    return getFile(getUrl(), true);
-});
-addButton('进|本地种子', () => {
-    return new Promise((resolve, reject) => {
-        const input = document.createElement('input');
-        input.type = 'file';
-
-        // 文件选择事件
-        input.onchange = async (e) => {
-            try {
-                const file = e.target.files[0];
-                if (!file) {
-                    throw new Error('未选择文件');
-                }
-                console.log('选择的文件:', file.name);
-                await sendTorrentFile(file, true); // 等待文件上传完成
-                resolve();
-            } catch (error) {
-                console.error('文件上传失败:', error);
-                addMsg('文件上传失败: ' + error, 'error');
-                reject(error);
-            }
-        };
-
-        // 文件选择取消事件
-        input.oncancel = () => {
-            console.log('文件选择已取消');
-            reject(new Error('文件选择已取消'));
-        };
-
-        input.click();
+if(config.buttons.leechtorrent){
+    addButton('进|推送种子', () => {
+        if (!confirm(`确定进货？`)) return new Promise((resolve) => { });
+        return getFile(getUrl(), true);
     });
-});
-addButton('面板', () => {
-    return listTorrent(); // 返回 Promise
-});
+    addButton('进|本地种子', () => {
+        return new Promise((resolve, reject) => {
+            const input = document.createElement('input');
+            input.type = 'file';
+    
+            // 文件选择事件
+            input.onchange = async (e) => {
+                try {
+                    const file = e.target.files[0];
+                    if (!file) {
+                        throw new Error('未选择文件');
+                    }
+                    console.log('选择的文件:', file.name);
+                    await sendTorrentFile(file, true); // 等待文件上传完成
+                    resolve();
+                } catch (error) {
+                    console.error('文件上传失败:', error);
+                    addMsg('文件上传失败: ' + error, 'error');
+                    reject(error);
+                }
+            };
+    
+            // 文件选择取消事件
+            input.oncancel = () => {
+                console.log('文件选择已取消');
+                reject(new Error('文件选择已取消'));
+            };
+    
+            input.click();
+        });
+    });
+}
+if(config.buttons.panel){
+    addButton('面板', () => {
+        return listTorrent(); // 返回 Promise
+    });
+}
 addButton('设置', handleSettings);
