@@ -383,6 +383,8 @@ var apiurl = '';
 var deployapiurl = '';
 var listapiurl = '';
 var deleteapiurl = '';
+var mediaapiurl = '';
+
 
 // 初始化配置
 var config = {};
@@ -401,6 +403,7 @@ function initconfig() {
     deployapiurl = `${config.apidomain}/force_deploy`;
     listapiurl = `${config.apidomain}/get_info`;
     deleteapiurl = `${config.apidomain}/del_torrent`;
+    mediaapiurl = `${config.apidomain}/get_media`;
 }
 // 配置管理部分
 function loadConfig() {
@@ -1414,12 +1417,12 @@ addButton('设置', handleSettings);
 
 if(config.buttons.test){
     addButton('获取信息', () => {
-        return getInfo(); // 返回 Promise
+        return get_media(); // 返回 Promise
     });
 }
 
 
-async function getInfo() {
+async function get_media() {
     return new Promise((resolve, reject) => {
         const requestUUID = generateUUID();
         const timestamp = Math.floor(Date.now() / 1000).toString();
@@ -1428,7 +1431,11 @@ async function getInfo() {
             .then((signature) => {
                 debugger;
                 const element = document.getElementById('tBlob');
+                if (!element) {
+                    throw new Error('种子文件未加载，请稍等');
+                }
                 const torrentBase64 =  element.value;
+
                 const payload = {
                     uuid: requestUUID,
                     timestamp: timestamp,
@@ -1440,7 +1447,7 @@ async function getInfo() {
 
                 GM_xmlhttpRequest({
                     method: "POST",
-                    url: apiurl,
+                    url: mediaapiurl,
                     headers: {
                         "Content-Type": "application/json"
                     },
@@ -1450,19 +1457,10 @@ async function getInfo() {
                         const result = JSON.parse(response.responseText);
                         if (response.status == 200 && result.status === 'success') {
                             const msg = [
-                                '种子文件推送成功',
-                                '种 子 名: ' + result.torrent_name,
-                                'tracker: ' + result.tracker
+                                result.data.output
                             ].join('\n');
                             addMsg(msg);
                             resolve();
-                        } else {
-                            const msg = [
-                                '种子文件推送失败',
-                                '失败原因: ' + result.message
-                            ].join('\n');
-                            addMsg(msg, 'error');
-                            reject(result.message);
                         }
                     },
                     onerror: function (error) {
@@ -1473,8 +1471,8 @@ async function getInfo() {
                 });
             })
             .catch((error) => {
-                console.error('生成签名失败:', error);
-                addMsg('生成签名失败: ' + error.message, 'error');
+                console.error('获取媒体信息失败:', error);
+                addMsg('获取媒体信息失败: ' + error.message, 'error');
                 reject(error);
             });
     });
