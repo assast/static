@@ -1419,10 +1419,10 @@ if(config.buttons.test){
     addButton('获取媒体信息', () => {
         return get_media('media'); // 返回 Promise
     });
-    addButton('截图上传ptpimg', () => {
+    addButton('截图ptpimg', () => {
         return get_media('pjietu'); // 返回 Promise
     });
-    addButton('截图上传imgbox', () => {
+    addButton('截图imgbox', () => {
         return get_media('ijietu'); // 返回 Promise
     });
 }
