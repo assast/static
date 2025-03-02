@@ -1376,7 +1376,7 @@ if (site_url.match(/upload.php/)) {
     
 }
 // 添加按钮
-else if (site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
+else if (site_url.match(/torrents/) || site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
     addButton('编辑种子', () => {
 
         const editButton = document.querySelector('a[href*="edit.php"]');
