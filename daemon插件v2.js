@@ -1295,7 +1295,7 @@ if (site_url.match(/details.php\?id=\d+&uploaded=1/) || site_url.match(/torrents
         init();
     }
 }
-else if (site_url.match(/upload.php/)) {
+if (site_url.match(/upload.php/)) {
     addButton('点击发布', () => {
         const publishButton = document.querySelector('input[value="发布"]');
         if (publishButton) {
@@ -1304,9 +1304,22 @@ else if (site_url.match(/upload.php/)) {
             addMsg('未找到发布按钮！');
         }
     });
+
+    if(config.buttons.test){
+        addButton('获取媒体信息', () => {
+            return get_media('media'); // 返回 Promise
+        });
+        addButton('截图ptpimg', () => {
+            return get_media('pjietu'); // 返回 Promise
+        });
+        addButton('截图imgbox', () => {
+            return get_media('ijietu'); // 返回 Promise
+        });
+    }
+    
 }
 // 添加按钮
-if (site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
+else if (site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
     addButton('编辑种子', () => {
 
         const editButton = document.querySelector('a[href*="edit.php"]');
@@ -1316,8 +1329,79 @@ if (site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
             addMsg('未找到编辑按钮！');
         }
     });
+    addButton('发|推送种子', () => {
+        return getFile(getUrl()); // 返回 Promise
+    });
+    addButton('发|本地种子', () => {
+        return new Promise((resolve, reject) => {
+            const input = document.createElement('input');
+            input.type = 'file';
+    
+            // 文件选择事件
+            input.onchange = async (e) => {
+                try {
+                    const file = e.target.files[0];
+                    if (!file) {
+                        throw new Error('未选择文件');
+                    }
+                    console.log('选择的文件:', file.name);
+                    await sendTorrentFile(file); // 等待文件上传完成
+                    resolve();
+                } catch (error) {
+                    console.error('文件上传失败:', error);
+                    addMsg('文件上传失败: ' + error, 'error');
+                    reject(error);
+                }
+            };
+    
+            // 文件选择取消事件
+            input.oncancel = () => {
+                console.log('文件选择已取消');
+                reject(new Error('文件选择已取消'));
+            };
+    
+            input.click();
+        });
+    });
+    if(config.buttons.leechtorrent){
+        addButton('进|推送种子', () => {
+            if (!confirm(`确定进货？`)) return new Promise((resolve) => { });
+            return getFile(getUrl(), true);
+        });
+        addButton('进|本地种子', () => {
+            return new Promise((resolve, reject) => {
+                const input = document.createElement('input');
+                input.type = 'file';
+        
+                // 文件选择事件
+                input.onchange = async (e) => {
+                    try {
+                        const file = e.target.files[0];
+                        if (!file) {
+                            throw new Error('未选择文件');
+                        }
+                        console.log('选择的文件:', file.name);
+                        await sendTorrentFile(file, true); // 等待文件上传完成
+                        resolve();
+                    } catch (error) {
+                        console.error('文件上传失败:', error);
+                        addMsg('文件上传失败: ' + error, 'error');
+                        reject(error);
+                    }
+                };
+        
+                // 文件选择取消事件
+                input.oncancel = () => {
+                    console.log('文件选择已取消');
+                    reject(new Error('文件选择已取消'));
+                };
+        
+                input.click();
+            });
+        });
+    }
 }
-if (site_url.match(/edit.php/)) {
+else if (site_url.match(/edit.php/)) {
     addButton('编辑完成', () => {
         debugger;
         const editButton = document.querySelector('input[id="qr"]');
@@ -1337,96 +1421,13 @@ if (site_url.match(/edit.php/)) {
 // addButton('推送链接', () => {
 //     sendTorrentLink(getUrl())
 // });
-addButton('发|推送种子', () => {
-    return getFile(getUrl()); // 返回 Promise
-});
-addButton('发|本地种子', () => {
-    return new Promise((resolve, reject) => {
-        const input = document.createElement('input');
-        input.type = 'file';
 
-        // 文件选择事件
-        input.onchange = async (e) => {
-            try {
-                const file = e.target.files[0];
-                if (!file) {
-                    throw new Error('未选择文件');
-                }
-                console.log('选择的文件:', file.name);
-                await sendTorrentFile(file); // 等待文件上传完成
-                resolve();
-            } catch (error) {
-                console.error('文件上传失败:', error);
-                addMsg('文件上传失败: ' + error, 'error');
-                reject(error);
-            }
-        };
-
-        // 文件选择取消事件
-        input.oncancel = () => {
-            console.log('文件选择已取消');
-            reject(new Error('文件选择已取消'));
-        };
-
-        input.click();
-    });
-});
-if(config.buttons.leechtorrent){
-    addButton('进|推送种子', () => {
-        if (!confirm(`确定进货？`)) return new Promise((resolve) => { });
-        return getFile(getUrl(), true);
-    });
-    addButton('进|本地种子', () => {
-        return new Promise((resolve, reject) => {
-            const input = document.createElement('input');
-            input.type = 'file';
-    
-            // 文件选择事件
-            input.onchange = async (e) => {
-                try {
-                    const file = e.target.files[0];
-                    if (!file) {
-                        throw new Error('未选择文件');
-                    }
-                    console.log('选择的文件:', file.name);
-                    await sendTorrentFile(file, true); // 等待文件上传完成
-                    resolve();
-                } catch (error) {
-                    console.error('文件上传失败:', error);
-                    addMsg('文件上传失败: ' + error, 'error');
-                    reject(error);
-                }
-            };
-    
-            // 文件选择取消事件
-            input.oncancel = () => {
-                console.log('文件选择已取消');
-                reject(new Error('文件选择已取消'));
-            };
-    
-            input.click();
-        });
-    });
-}
 if(config.buttons.panel){
     addButton('面板', () => {
         return listTorrent(); // 返回 Promise
     });
 }
 addButton('设置', handleSettings);
-
-if(config.buttons.test){
-    addButton('获取媒体信息', () => {
-        return get_media('media'); // 返回 Promise
-    });
-    addButton('截图ptpimg', () => {
-        return get_media('pjietu'); // 返回 Promise
-    });
-    addButton('截图imgbox', () => {
-        return get_media('ijietu'); // 返回 Promise
-    });
-}
-
 
 async function get_media(command) {
     return new Promise((resolve, reject) => {
