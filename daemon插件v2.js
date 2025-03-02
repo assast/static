@@ -1167,9 +1167,9 @@ function addMsg(msg, type) {
     msgBox.value = msg.replace(/\\n/g, '\n');
 
     // 动态调整 textarea 的高度
-    // msgBox.style.height = 'auto'; // 先设置为 auto，以便根据内容计算高度
+    msgBox.style.height = 'auto'; // 先设置为 auto，以便根据内容计算高度
     // msgBox.style.height = Math.min(msgBox.scrollHeight, 100) + 'px'; // 限制最大高度为 200px
-    msgBox.style.height = '100px'; // 先设置为 auto，以便根据内容计算高度
+    // msgBox.style.height = '100px'; // 先设置为 auto，以便根据内容计算高度
 
     if (type && type == 'error') {
         msgBox.className = 'daemon-msg daemon-msg-fail';
@@ -1288,6 +1288,86 @@ function createListContainer() {
     return container;
 }
 
+// 新增 showMediaInfo 方法
+function showMediaInfo(content) {
+    // 创建容器
+    const container = document.createElement('div');
+    container.style.position = 'fixed';
+    container.style.top = '100px';
+    container.style.left = '50%';
+    container.style.transform = 'translateX(-50%)';
+    container.style.zIndex = '9999';
+    container.style.width = '60%';
+    container.style.padding = '10px';
+    container.style.backgroundColor = 'rgba(230, 247, 255, 0.8)';
+    container.style.border = '1px solid #000';
+    container.style.borderRadius = '4px';
+    container.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.style.alignItems = 'flex-end';
+
+    // 创建 textarea
+    const textarea = document.createElement('textarea');
+    textarea.style.width = '100%';
+    textarea.style.height = '70vh';
+
+    textarea.style.padding = '8px';
+    textarea.style.border = '1px solid #ddd';
+    textarea.style.borderRadius = '4px';
+    textarea.style.fontFamily = 'Arial, sans-serif';
+    textarea.style.fontSize = '14px';
+    textarea.style.resize = 'none';
+    textarea.style.whiteSpace = 'pre-wrap';
+    textarea.style.wordBreak = 'break-all';
+    textarea.value = content;
+
+    // 创建按钮容器
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.marginTop = '10px';
+
+    // 创建复制按钮
+    const copyButton = document.createElement('button');
+    copyButton.textContent = '复制';
+    copyButton.style.padding = '6px 12px';
+    copyButton.style.backgroundColor = '#007bff';
+    copyButton.style.color = '#fff';
+    copyButton.style.border = 'none';
+    copyButton.style.borderRadius = '4px';
+    copyButton.style.cursor = 'pointer';
+    copyButton.style.marginRight = '10px';
+
+    copyButton.addEventListener('click', () => {
+        textarea.select();
+        document.execCommand('copy');
+        addMsg('内容已复制到剪贴板');
+    });
+
+    // 创建关闭按钮
+    const closeButton = document.createElement('button');
+    closeButton.textContent = '关闭';
+    closeButton.style.padding = '6px 12px';
+    closeButton.style.backgroundColor = '#dc3545';
+    closeButton.style.color = '#fff';
+    closeButton.style.border = 'none';
+    closeButton.style.borderRadius = '4px';
+    closeButton.style.cursor = 'pointer';
+
+    closeButton.addEventListener('click', () => {
+        document.body.removeChild(container);
+    });
+
+    // 添加按钮到容器
+    buttonContainer.appendChild(copyButton);
+    buttonContainer.appendChild(closeButton);
+
+    // 添加 textarea 和按钮到容器
+    container.appendChild(textarea);
+    container.appendChild(buttonContainer);
+
+    // 添加容器到页面
+    document.body.appendChild(container);
+}
 
 async function get_media(command) {
     return new Promise((resolve, reject) => {
@@ -1325,7 +1405,7 @@ async function get_media(command) {
                             const msg = [
                                 result.data.output
                             ].join('\n');
-                            addMsg(msg);
+                            showMediaInfo(msg); // 使用 showMediaInfo 展示结果
                             resolve();
                         } else {
                             var msg = [
@@ -1369,18 +1449,21 @@ if (site_url.match(/upload.php/)) {
         }
     });
 
-    if(config.buttons.test){
+    if(config.buttons.media){
         addButton('获取媒体信息', () => {
             return get_media('media'); // 返回 Promise
         });
+    }
+    if(config.buttons.pjietu){
         addButton('截图ptpimg', () => {
             return get_media('pjietu'); // 返回 Promise
         });
+    }
+    if(config.buttons.ijietu){
         addButton('截图imgbox', () => {
             return get_media('ijietu'); // 返回 Promise
         });
     }
-    
 }
 // 添加按钮
 else if (site_url.match(/torrents/) || site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
