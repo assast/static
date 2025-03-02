@@ -1288,6 +1288,63 @@ function createListContainer() {
     return container;
 }
 
+
+async function get_media(command) {
+    return new Promise((resolve, reject) => {
+        const requestUUID = generateUUID();
+        const timestamp = Math.floor(Date.now() / 1000).toString();
+
+        generateSignature(requestUUID, timestamp)
+            .then((signature) => {
+                debugger;
+                const element = document.getElementById('tBlob');
+                if (!element) {
+                    throw new Error('种子文件未加载，请稍等');
+                }
+                const torrentBase64 =  element.value;
+
+                const payload = {
+                    uuid: requestUUID,
+                    timestamp: timestamp,
+                    signature: signature,
+                    torrent_bytesio: torrentBase64,
+                    command: command
+                };
+
+                GM_xmlhttpRequest({
+                    method: "POST",
+                    url: mediaapiurl,
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    data: JSON.stringify(payload),
+                    onload: function (response) {
+                        console.log(response.responseText);
+                        const result = JSON.parse(response.responseText);
+                        if (response.status == 200 && result.status === 'success') {
+                            const msg = [
+                                result.data.output
+                            ].join('\n');
+                            addMsg(msg);
+                            resolve();
+                        }
+                    },
+                    onerror: function (error) {
+                        console.error('上传失败:', error);
+                        addMsg('上传种子文件失败');
+                        reject(error);
+                    }
+                });
+            })
+            .catch((error) => {
+                console.error('获取媒体信息失败:', error);
+                addMsg('获取媒体信息失败: ' + error.message, 'error');
+                reject(error);
+            });
+    });
+}
+
+// ==================== 按钮控制 ====================
 if (site_url.match(/details.php\?id=\d+&uploaded=1/) || site_url.match(/torrents\/download_check/)) {
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
@@ -1428,58 +1485,3 @@ if(config.buttons.panel){
     });
 }
 addButton('设置', handleSettings);
-
-async function get_media(command) {
-    return new Promise((resolve, reject) => {
-        const requestUUID = generateUUID();
-        const timestamp = Math.floor(Date.now() / 1000).toString();
-
-        generateSignature(requestUUID, timestamp)
-            .then((signature) => {
-                debugger;
-                const element = document.getElementById('tBlob');
-                if (!element) {
-                    throw new Error('种子文件未加载，请稍等');
-                }
-                const torrentBase64 =  element.value;
-
-                const payload = {
-                    uuid: requestUUID,
-                    timestamp: timestamp,
-                    signature: signature,
-                    torrent_bytesio: torrentBase64,
-                    command: command
-                };
-
-                GM_xmlhttpRequest({
-                    method: "POST",
-                    url: mediaapiurl,
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    data: JSON.stringify(payload),
-                    onload: function (response) {
-                        console.log(response.responseText);
-                        const result = JSON.parse(response.responseText);
-                        if (response.status == 200 && result.status === 'success') {
-                            const msg = [
-                                result.data.output
-                            ].join('\n');
-                            addMsg(msg);
-                            resolve();
-                        }
-                    },
-                    onerror: function (error) {
-                        console.error('上传失败:', error);
-                        addMsg('上传种子文件失败');
-                        reject(error);
-                    }
-                });
-            })
-            .catch((error) => {
-                console.error('获取媒体信息失败:', error);
-                addMsg('获取媒体信息失败: ' + error.message, 'error');
-                reject(error);
-            });
-    });
-}
