@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v2
 // @namespace    http://tampermonkey.net/
-// @version      2.2
+// @version      2.3
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -1327,6 +1327,12 @@ async function get_media(command) {
                             ].join('\n');
                             addMsg(msg);
                             resolve();
+                        } else {
+                            var msg = [
+                                '获取失败',
+                                '失败原因: ' + result.message
+                            ].join('\n');
+                            addMsg(msg, 'error');
                         }
                     },
                     onerror: function (error) {
