@@ -1329,15 +1329,16 @@ async function get_media(command) {
                             resolve();
                         } else {
                             var msg = [
-                                '获取失败',
+                                '获取媒体信息失败',
                                 '失败原因: ' + result.message
                             ].join('\n');
                             addMsg(msg, 'error');
+                            reject(result.message);
                         }
                     },
                     onerror: function (error) {
-                        console.error('上传失败:', error);
-                        addMsg('上传种子文件失败');
+                        console.error('获取媒体信息失败:', error);
+                        addMsg('获取媒体信息失败');
                         reject(error);
                     }
                 });
