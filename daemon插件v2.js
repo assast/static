@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v2
 // @namespace    http://tampermonkey.net/
-// @version      2.3
+// @version      2.4
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -302,6 +302,7 @@ style.textContent += `
   color: #000 !important; /* 新增强制黑色字体 */
   text-align: center; /* 文本居中 */
   vertical-align: middle; /* 垂直居中 */
+  background-color: #f8f9fa;
 }
 
 .daemon-table th {
@@ -314,6 +315,7 @@ style.textContent += `
   border-collapse: collapse;
   margin-top: 5px;
   color: #000;
+  background-color: #f8f9fa;
 }
 
 .nested-table th,
