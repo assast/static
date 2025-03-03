@@ -1343,6 +1343,7 @@ function showMediaInfo(content) {
         textarea.select();
         document.execCommand('copy');
         addMsg('内容已复制到剪贴板');
+        document.body.removeChild(container);
     });
 
     // 创建关闭按钮
