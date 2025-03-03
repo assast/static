@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v2
 // @namespace    http://tampermonkey.net/
-// @version      2.4
+// @version      2.5
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -1045,7 +1045,7 @@ function generateRelatedDataTable(relatedData) {
 
     relatedData.forEach(data => {
         nestedTableHTML += `
-            <tr data-hash="${data[1]}" data-md5="${data[1]}">
+            <tr data-hash="${data[1]}" data-md5="${data[6]}">
                 <td>${data[2]}</td>
                 <td>${data[3] ? '是' : '否'}</td>
                 <td>${data[4]}</td>
@@ -1138,6 +1138,7 @@ function displayTable(tableHTML, leechTableHTML) {
         const row = e.target.closest('tr');
 
         if (deleteBtn || forcePushBtn) {
+            debugger;
             const hash = row.dataset.hash;
             const md5 = row.dataset.md5;
             const tracker = row.querySelector('td:nth-child(1)').textContent; // 获取 Tracker
