@@ -1192,6 +1192,7 @@ async function deleteRelatedData(hash, md5, tracker, addedTime) {
             timestamp: timestamp,
             signature: signature,
             torrent_hash: hash,
+            torrent_md5: md5,
             nodropqbit: true
         };
 
