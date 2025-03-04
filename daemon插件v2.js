@@ -1229,7 +1229,7 @@ async function deleteRelatedData(hash, md5, tracker, addedTime) {
 
 async function forcePushRelatedData(hash, md5, tracker, addedTime) {
     if (!confirm(`确定要强制推送以下相关数据吗？\nTracker: ${tracker}\n添加时间: ${addedTime}\nHash: ${hash}`)) return;
-
+    addMsg("xiongdie 还没做呢，等做好了再点吧");
     // try {
     //     await doPostJson(deployapiurl, {
     //         torrent_hash: hash,
