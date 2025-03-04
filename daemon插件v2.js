@@ -111,7 +111,8 @@ style.textContent += `
 
 /* 内容区域过渡动画 */
 .list-content {
-  max-height: 500px;
+//   max-height: 500px;
+  max-height: 80vh;
   overflow: auto;
   transition: max-height 0.3s ease-out;
 }
