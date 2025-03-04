@@ -211,17 +211,15 @@ style.textContent += `
 /* 按钮容器样式 */
 #daemon-btn-container {
     position: fixed;
-    right: 20px;
-    top: 250px;
     z-index: 99999;
     display: flex;
     flex-direction: column;
     gap: 8px;
     cursor: move;
-    background: rgba(255,255,255,0.1);
+    background: rgba(255, 255, 255, 0.1);
     padding: 10px;
     border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     transition: all 0.3s ease;
 }
 
@@ -531,114 +529,92 @@ function handleSettings() {
 const btnContainer = document.createElement('div');
 btnContainer.id = 'daemon-btn-container';
 
-// 修改初始化位置加载部分
+// 初始化位置
 const savedPosition = GM_getValue('btn_position', null);
-const containerRect = btnContainer.getBoundingClientRect();
-const defaultPosition = { x: 20, y: 250 };
+const defaultPosition = { x: 20, y: 250 }; // 默认位置（px）
+
+// 将默认位置转换为 vw 和 vh
+const defaultVW = (defaultPosition.x / window.innerWidth) * 100;
+const defaultVH = (defaultPosition.y / window.innerHeight) * 100;
+
+// 应用初始位置
+if (savedPosition) {
+    btnContainer.style.left = `${savedPosition.x}vw`;
+    btnContainer.style.top = `${savedPosition.y}vh`;
+} else {
+    btnContainer.style.left = `${defaultVW}vw`;
+    btnContainer.style.top = `${defaultVH}vh`;
+}
 
 // 拖拽功能实现
 let isDragging = false;
 let startX, startY;
-let initialX, initialY;
-let dragThreshold = 5; // 触发拖拽的阈值
-
-// 新增位置修正函数
-function validatePosition(pos) {
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const containerWidth = btnContainer.offsetWidth;
-    const containerHeight = btnContainer.offsetHeight;
-
-    return {
-        x: Math.min(Math.max(pos.x, 0), viewportWidth - containerWidth - 10),
-        y: Math.min(Math.max(pos.y, 10), viewportHeight - containerHeight - 10)
-    };
-}
-
-// 应用初始位置
-if (savedPosition) {
-    const validPos = validatePosition(savedPosition);
-    btnContainer.style.right = `${validPos.x}px`;
-    btnContainer.style.top = `${validPos.y}px`;
-} else {
-    btnContainer.style.right = `${defaultPosition.x}px`;
-    btnContainer.style.top = `${defaultPosition.y}px`;
-}
-
+let initialVW, initialVH;
 
 btnContainer.addEventListener('mousedown', function (e) {
     startX = e.clientX;
     startY = e.clientY;
-    initialX = parseFloat(this.style.right) || 20;
-    initialY = parseFloat(this.style.top) || 250;
+    initialVW = parseFloat(btnContainer.style.left) || defaultVW;
+    initialVH = parseFloat(btnContainer.style.top) || defaultVH;
     isDragging = false;
 });
 
-
-// 修改拖拽事件处理
 document.addEventListener('mousemove', function (e) {
     if (startX === undefined) return;
 
     const deltaX = Math.abs(e.clientX - startX);
     const deltaY = Math.abs(e.clientY - startY);
 
-    if (!isDragging && (deltaX > dragThreshold || deltaY > dragThreshold)) {
+    if (!isDragging && (deltaX > 5 || deltaY > 5)) {
         isDragging = true;
         btnContainer.style.transition = 'none';
     }
 
     if (isDragging) {
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-        const containerRect = btnContainer.getBoundingClientRect();
+        // 计算新的 vw 和 vh 值
+        const deltaVW = ((startX - e.clientX) / window.innerWidth) * 100;
+        const deltaVH = ((e.clientY - startY) / window.innerHeight) * 100;
 
-        // 计算边界限制
-        let newX = initialX + (startX - e.clientX);
-        let newY = initialY + (e.clientY - startY);
+        let newVW = initialVW - deltaVW;
+        let newVH = initialVH + deltaVH;
 
-        // X轴边界检查
-        newX = Math.max(10, Math.min(newX, viewportWidth - containerRect.width - 10));
+        // 边界限制
+        newVW = Math.max(0, Math.min(newVW, 100 - (btnContainer.offsetWidth / window.innerWidth) * 100));
+        newVH = Math.max(0, Math.min(newVH, 100 - (btnContainer.offsetHeight / window.innerHeight) * 100));
 
-        // Y轴边界检查
-        newY = Math.max(10, Math.min(newY, viewportHeight - containerRect.height - 10));
-
-        // 应用限制后的位置
-        btnContainer.style.right = `${newX}px`;
-        btnContainer.style.top = `${newY}px`;
-
-        // 边界碰撞提示
-        if (newX <= 10 || newX >= viewportWidth - containerRect.width - 10) {
-            btnContainer.classList.add('boundary-hit');
-            setTimeout(() => btnContainer.classList.remove('boundary-hit'), 400);
-        }
+        // 应用新的位置
+        btnContainer.style.left = `${newVW}vw`;
+        btnContainer.style.top = `${newVH}vh`;
     }
-});
-
-// 添加窗口resize监听
-let resizeTimer;
-window.addEventListener('resize', () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
-        const currentX = parseFloat(btnContainer.style.right) || 20;
-        const currentY = parseFloat(btnContainer.style.top) || 250;
-        const validPos = validatePosition({ x: currentX, y: currentY });
-
-        btnContainer.style.transition = 'all 0.3s ease';
-        btnContainer.style.right = `${validPos.x}px`;
-        btnContainer.style.top = `${validPos.y}px`;
-    }, 200);
 });
 
 document.addEventListener('mouseup', function () {
     if (isDragging) {
+        // 保存位置（以 vw 和 vh 为单位）
         GM_setValue('btn_position', {
-            x: parseFloat(btnContainer.style.right),
+            x: parseFloat(btnContainer.style.left),
             y: parseFloat(btnContainer.style.top)
         });
         btnContainer.style.transition = 'all 0.3s ease';
     }
     startX = startY = undefined;
     isDragging = false;
+});
+
+// 窗口 resize 时重新计算边界
+window.addEventListener('resize', () => {
+    const currentVW = parseFloat(btnContainer.style.left) || defaultVW;
+    const currentVH = parseFloat(btnContainer.style.top) || defaultVH;
+
+    // 确保按钮不超出视口
+    const maxVW = 100 - (btnContainer.offsetWidth / window.innerWidth) * 100;
+    const maxVH = 100 - (btnContainer.offsetHeight / window.innerHeight) * 100;
+
+    const newVW = Math.min(currentVW, maxVW);
+    const newVH = Math.min(currentVH, maxVH);
+
+    btnContainer.style.left = `${newVW}vw`;
+    btnContainer.style.top = `${newVH}vh`;
 });
 
 // 创建带拖拽手柄的按钮
