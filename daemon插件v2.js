@@ -433,6 +433,144 @@ function saveConfig(config) {
     GM_setValue('daemon_config', JSON.stringify(config));
 }
 
+const used_site_info = {
+    '1PTBA': {'url': 'https://1ptba.com/'},
+    '52PT': {'url': 'https://52pt.site/'},
+    'ACM': {'url': 'https://eiga.moi/'},
+    'ANT': {'url': 'https://anthelion.me/'},
+    'avz': {'url': 'https://avistaz.to/'},
+    'Audiences': {'url': 'https://audiences.me/'},
+    'BHD' : {'url': 'https://beyond-hd.me/'},
+    'Aither': {'url': 'https://aither.cc/'},
+    'BLU': {'url': 'https://blutopia.cc/'},
+    'BTN': {'url': 'https://broadcasthe.net/'},
+    'BYR': {'url': 'https://byr.pt/'},
+    'BTSchool': {'url': 'https://pt.btschool.club/'},
+    'CarPt': {'url': 'https://carpt.net/'},
+    'CG': {'url': 'http://cinemageddon.net/'},
+    'CMCT': {'url': "https://springsunday.net/"},
+    'CNZ': {'url': 'https://cinemaz.to/'},
+    'CHDBits': {'url': "https://ptchdbits.co/"},
+    'DiscFan': {'url': 'https://discfan.net/'},
+    'Dragon': {'url': 'https://www.dragonhd.xyz/'},
+    'FreeFarm': {'url': 'https://pt.0ff.cc/'},
+    'GPW': {'url': 'https://greatposterwall.com/'},
+    'HaiDan': {'url': 'https://www.haidan.video/'},
+    'HD4FANS': {'url': 'https://pt.hd4fans.org/'},
+    'HDArea': {'url': 'https://hdarea.club/'},
+    'HDAtmos': {'url': 'https://hdatmos.club/'},
+    'HDB': {'url': 'https://hdbits.org/'},
+    'HDCity': {'url': 'https://hdcity.city/'},
+    'HDDolby': {'url': 'https://www.hddolby.com/'},
+    'HDF': {'url': 'https://hdf.world/'},
+    'HDfans': {'url': 'http://hdfans.org/'},
+    'HDHome': {'url': 'https://hdhome.org/'},
+    'HDPost': {'url': 'https://pt.hdpost.top/'},
+    'DarkLand': {'url': 'https://darkland.top/'},
+    'HDRoute': {'url': 'http://hdroute.org/'},
+    'HDSky': {'url': 'https://hdsky.me/'},
+    'HDSpace': {'url': 'https://hd-space.org/'},
+    'HDT': {'url': 'https://hd-torrents.org/'},
+    'HDTime': {'url': 'https://hdtime.org/'},
+    'HDU': {'url': 'https://pt.hdupt.com/'},
+    'HDVideo': {'url': 'https://hdvideo.one/'},
+    'HD-Only': {'url': 'https://hd-only.org/'},
+    'HITPT': {'url': 'https://www.hitpt.com/'},
+    'HUDBT': {'url': 'https://hudbt.hust.edu.cn/'},
+    'iTS': {'url': 'https://shadowthein.net/'},
+    'JoyHD': {'url': 'https://www.joyhd.net/'},
+    'KG': {'url': 'https://karagarga.in/'},
+    'MTeam': {'url': 'https://kp.m-team.cc/'},
+    'MTV': {'url': 'https://www.morethantv.me/'},
+    'NanYang': {'url': 'https://nanyangpt.com/'},
+    'NBL': {'url': 'https://nebulance.io/'},
+    'NPUPT': {'url': 'https://npupt.com/'},
+    'OpenCD': {'url': 'https://open.cd/'},
+    'OPS': {'url': 'https://orpheus.network/'},
+    'Oshen': {'url': 'http://www.oshen.win/'},
+    'OurBits': {'url': 'https://ourbits.club/'},
+    'PHD': {'url': 'https://privatehd.to/'},
+    'PigGo': {'url': 'https://piggo.me/'},
+    'PTCafe': {'url': 'https://ptcafe.club/'},
+    'PTChina': {'url': 'https://ptchina.org/'},
+    'PTer': {'url': 'https://pterclub.com/'},
+    'PThome': {'url': 'https://www.pthome.net/'},
+    'PTP': {'url': 'https://passthepopcorn.me/'},
+    'PTsbao': {'url': 'https://ptsbao.club/'},
+    'PTT': {'url': 'https://www.pttime.org/'},
+    'PuTao': {'url': 'https://pt.sjtu.edu.cn/'},
+    'RED': {'url': 'https://redacted.sh/'},
+    'SC': {'url': 'https://secret-cinema.pw/'},
+    'SoulVoice': {'url': 'https://pt.soulvoice.club/'},
+    'TCCF': {'url': 'https://et8.org/'},
+    'Tik': {'url': 'https://cinematik.net/'},
+    'TJUPT': {'url': 'https://www.tjupt.org/'},
+    'TLFbits': {'url': 'http://pt.eastgame.org/'},
+    'TTG': {'url': 'https://totheglory.im/'},
+    'TVV': {'url': 'http://tv-vault.me/'},
+    'UHD': {'url': 'https://uhdbits.org/'},
+    'UltraHD': {'url': 'https://ultrahd.net/'},
+    'WT-Sakura': {'url': 'https://wintersakura.net/'},
+    'xthor': {'url': 'https://xthor.tk/'},
+    'YDY': {'url': 'https://pt.hdbd.us/'},
+    'ITZMX': {'url': 'https://pt.itzmx.com/'},
+    'HDPt': {'url': 'https://hdpt.xyz/'},
+    'JPTV': {'url': 'https://jptv.club/'},
+    'Monika': {'url': 'https://monikadesign.uk/'},
+    'ZMPT': {'url': 'https://zmpt.cc/'},
+    '红叶': {'url': 'https://leaves.red/'},
+    'ICC': {'url': 'https://www.icc2022.com/'},
+    'CyanBug': {'url': 'https://cyanbug.net/'},
+    'ZHUQUE': {'url': 'https://zhuque.in/'},
+    'YemaPT': {'url': 'https://www.yemapt.org/'},
+    '海棠': {'url': 'https://www.htpt.cc/'},
+    '杏林': {'url': 'https://xingtan.one/'},
+    'UBits': {'url': 'https://ubits.club/'},
+    'OKPT': {'url': 'https://www.okpt.net/'},
+    'GGPT': {'url': 'https://www.gamegamept.com/'},
+    'RS': {'url': 'https://resource.xidian.edu.cn/'},
+    'Panda': {'url': 'https://pandapt.net/'},
+    'KuFei': {'url': 'https://kufei.org/'},
+    'RouSi': {'url': 'https://rousi.zip/'},
+    '悟空': {'url': 'https://wukongwendao.top/'},
+    'GTK': {'url': 'https://pt.gtk.pw/'},
+    '象岛': {'url': 'https://ptvicomo.net/'},
+    '麒麟': {'url': 'https://www.hdkyl.in/'},
+    'AGSV': {'url': 'https://www.agsvpt.com/'},
+    'ECUST': {'url': 'https://pt.ecust.pp.ua/'},
+    'iloli': {'url': 'https://share.ilolicon.com/'},
+    'CrabPt': {'url': 'https://crabpt.vip/'},
+    'QingWa': {'url': 'https://qingwapt.com/'},
+    'FNP': {'url': 'https://fearnopeer.com/'},
+    'OnlyEncodes': {'url': 'https://onlyencodes.cc/'},
+    'PTFans': {'url': 'https://ptfans.cc/'},
+    '影': {'url': 'https://star-space.net/'},
+    'PTzone': {'url': 'https://ptzone.xyz/'},
+    '雨': {'url': 'https://raingfh.top/'},
+    'PTLGS': {'url': 'https://ptlgs.org/'},
+    'NJTUPT': {'url': 'https://njtupt.top/'},
+    'LemonHD': {'url': 'https://lemonhd.club/'},
+    'ReelFliX': {'url': 'https://reelflix.xyz/'},
+    'HDClone': {'url': 'https://pt.hdclone.org/'}
+};
+
+//用来判断地址属于哪个站点（国内发布站点，国外源站点，或其他）
+function find_origin_site(url){
+    var domain; //域名
+    var reg;    //正则匹配表达式
+    var key;
+    //先从发布站点找
+    for (key in used_site_info){
+        //获取域名
+        domain = used_site_info[key].url.split('//')[1].replace('/', '');
+        reg = new RegExp(domain, 'i');
+        if (url.match(reg)){
+            return key;
+        }
+    }
+    return 'other';
+}
+var now_site = find_origin_site(site_url);
 
 // 设置按钮处理函数
 function handleSettings() {
@@ -654,8 +792,6 @@ function waitForElement(callback, maxTries = 30, interval = 1000) {
     let tries = 0;
 
     function check() {
-
-
         if (getUrl()) {
             callback();
             return;
@@ -1384,10 +1520,33 @@ async function get_media(command) {
                         console.log(response.responseText);
                         const result = JSON.parse(response.responseText);
                         if (response.status == 200 && result.status === 'success') {
-                            const msg = [
-                                result.data.output
-                            ].join('\n');
-                            showMediaInfo(msg); // 使用 showMediaInfo 展示结果
+                            var msg = '';
+                            if (now_site == 'Audiences') {
+                                msg = [
+                                    '[Mediainfo]',
+                                    result.data.output,
+                                    '[/Mediainfo]'
+                                ].join('\n');
+                                showMediaInfo(msg); // 使用 showMediaInfo 展示结果
+                            } else if (now_site == 'OurBits') {
+                                msg = [
+                                    '[quote]',
+                                    result.data.output,
+                                    '[/quote]'
+                                ].join('\n');
+                                showMediaInfo(msg); // 使用 showMediaInfo 展示结果
+                            } else if (now_site == 'UBits') {
+                                var technical_info = document.getElementsByName('technical_info');
+                                if(technical_info){
+                                    technical_info[0].value = result.data.output;
+                                }
+                                addMsg('获取媒体信息成功,已自动替换');
+                            } else {
+                                msg = [
+                                    result.data.output,
+                                ].join('\n');
+                                showMediaInfo(msg); // 使用 showMediaInfo 展示结果
+                            }      
                             resolve();
                         } else {
                             var msg = [
