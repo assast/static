@@ -14936,7 +14936,8 @@ function auto_feed() {
                     break;
                 case 'PigGo':
                     if (labels.gy){ check_label(document.getElementsByName('tags[4][]'), '5'); }
-                    if (labels.zz){ check_label(document.getElementsByName('tags[4][]'), '6'); }
+                    if (labels.zz && labels.yz){ check_label(document.getElementsByName('tags[4][]'), '21'); }
+                    else if (labels.zz){ check_label(document.getElementsByName('tags[4][]'), '6'); }
                     if (labels.diy){ check_label(document.getElementsByName('tags[4][]'), '4'); }
                     if (labels.hdr10 || labels.hdr10plus) { check_label(document.getElementsByName('tags[4][]'), '7');}
                     if (labels.db) {check_label(document.getElementsByName('tags[4][]'), '9');}
