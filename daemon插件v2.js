@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v2
 // @namespace    http://tampermonkey.net/
-// @version      2.5
+// @version      2.6
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -413,8 +413,12 @@ function loadConfig() {
         apikey: 'defaultKey',
         buttons: {
             panel: true,
-            leechtorrent: true
-        }
+            leechtorrent: false,
+            media: false,
+            pjietu: false,
+            ijietu: false
+        },
+        notautopush: []
     };
 
     const saved = GM_getValue('daemon_config', '');
@@ -784,8 +788,12 @@ if (window.self === window.top) {
 
 // 初始化函数
 function init() {
-    // 等待目标元素加载完成
-    waitForElement(processDownload);
+    if (config.notautopush && config.notautopush.includes(now_site)) {
+        console.log('当前站点不自动推送');
+    } else {
+        // 等待目标元素加载完成
+        waitForElement(processDownload);
+    }
 }
 // 等待元素出现的函数
 function waitForElement(callback, maxTries = 30, interval = 1000) {
@@ -1533,6 +1541,13 @@ async function get_media(command) {
                                     '[quote]',
                                     result.data.output,
                                     '[/quote]'
+                                ].join('\n');
+                                showMediaInfo(msg); // 使用 showMediaInfo 展示结果
+                            } else if (now_site == 'PTer') {
+                                msg = [
+                                    '[hide=mediainfo]',
+                                    result.data.output,
+                                    '[/hide]'
                                 ].join('\n');
                                 showMediaInfo(msg); // 使用 showMediaInfo 展示结果
                             } else if (now_site == 'UBits') {
