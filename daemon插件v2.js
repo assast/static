@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         daemon插件v2
 // @namespace    http://tampermonkey.net/
-// @version      2.7
+// @version      2.8
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
 // @match        http*://*/details.php*
 // @match        http*://*/edit.php*
 // @match        http*://*/torrents.php*
-// @match        https://kp.m-team.cc/detail/*
+// @match        https://kp.m-team.cc/*
 // @match        https://*/torrents*
 // @match        https://totheglory.im/t/*
 // @grant        GM_xmlhttpRequest
@@ -17,6 +17,8 @@
 // @grant        GM_download
 
 // @license MIT
+// @downloadURL https://update.greasyfork.org/scripts/528149/daemon%E6%8F%92%E4%BB%B6v2.user.js
+// @updateURL https://update.greasyfork.org/scripts/528149/daemon%E6%8F%92%E4%BB%B6v2.meta.js
 // ==/UserScript==
 
 // 在脚本开头添加样式表
