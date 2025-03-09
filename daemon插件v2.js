@@ -1596,7 +1596,7 @@ if (site_url.match(/details.php\?id=\d+&uploaded=1/) || site_url.match(/torrents
         init();
     }
 }
-if (site_url.match(/upload.php/)) {
+if (site_url.match(/upload.php/) || site_url.match(/upload/)) {
     addButton('点击发布', () => {
         const publishButton = document.querySelector('input[value="发布"]');
         if (publishButton) {
