@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v2
 // @namespace    http://tampermonkey.net/
-// @version      2.6
+// @version      2.7
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -1588,6 +1588,7 @@ async function get_media(command) {
 }
 
 // ==================== 按钮控制 ====================
+debugger;
 if (site_url.match(/details.php\?id=\d+&uploaded=1/) || site_url.match(/torrents\/download_check/)) {
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
@@ -1622,7 +1623,7 @@ if (site_url.match(/upload.php/)) {
     }
 }
 // 添加按钮
-else if (site_url.match(/torrents/) || site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
+else if (site_url.match(/torrents/) || site_url.match(/detail/) || site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
     addButton('编辑种子', () => {
 
         const editButton = document.querySelector('a[href*="edit.php"]');
@@ -1639,7 +1640,7 @@ else if (site_url.match(/torrents/) || site_url.match(/details.php/) || site_url
         return new Promise((resolve, reject) => {
             const input = document.createElement('input');
             input.type = 'file';
-    
+
             // 文件选择事件
             input.onchange = async (e) => {
                 try {
@@ -1656,13 +1657,13 @@ else if (site_url.match(/torrents/) || site_url.match(/details.php/) || site_url
                     reject(error);
                 }
             };
-    
+
             // 文件选择取消事件
             input.oncancel = () => {
                 console.log('文件选择已取消');
                 reject(new Error('文件选择已取消'));
             };
-    
+
             input.click();
         });
     });
@@ -1675,7 +1676,7 @@ else if (site_url.match(/torrents/) || site_url.match(/details.php/) || site_url
             return new Promise((resolve, reject) => {
                 const input = document.createElement('input');
                 input.type = 'file';
-        
+
                 // 文件选择事件
                 input.onchange = async (e) => {
                     try {
@@ -1692,13 +1693,13 @@ else if (site_url.match(/torrents/) || site_url.match(/details.php/) || site_url
                         reject(error);
                     }
                 };
-        
+
                 // 文件选择取消事件
                 input.oncancel = () => {
                     console.log('文件选择已取消');
                     reject(new Error('文件选择已取消'));
                 };
-        
+
                 input.click();
             });
         });
