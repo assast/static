@@ -1625,7 +1625,7 @@ if (site_url.match(/upload.php/) || site_url.match(/upload/)) {
     }
 }
 // 添加按钮
-else if (site_url.match(/torrents/) || site_url.match(/detail/) || site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
+if (site_url.match(/torrents/) || site_url.match(/detail/) || site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
     addButton('编辑种子', () => {
 
         const editButton = document.querySelector('a[href*="edit.php"]');
@@ -1707,7 +1707,7 @@ else if (site_url.match(/torrents/) || site_url.match(/detail/) || site_url.matc
         });
     }
 }
-else if (site_url.match(/edit.php/)) {
+if (site_url.match(/edit.php/)) {
     addButton('编辑完成', () => {
         debugger;
         const editButton = document.querySelector('input[id="qr"]');
