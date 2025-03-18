@@ -114,7 +114,7 @@ style.textContent += `
 /* 内容区域过渡动画 */
 .list-content {
 //   max-height: 500px;
-  max-height: 80vh;
+  max-height: 90vh;
   overflow: auto;
   transition: max-height 0.3s ease-out;
 }
@@ -133,7 +133,7 @@ style.textContent += `
   transform: translate(-50%, -50%);
   width: 70%;
 //   max-width: 1000px;
-  max-height: 80vh;
+  max-height: 90vh;
   background: white;
   box-shadow: 0 0 20px rgba(0,0,0,0.2);
   z-index: 10000;
