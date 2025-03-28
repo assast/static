@@ -95,7 +95,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      1.0.0.56
+// @version      1.0.0.57
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -14332,7 +14332,7 @@ function auto_feed() {
         
         // assast 青蛙hdr10需要改为hdr 不能有10bit
         if(forward_site == "QingWa"){
-            //raw_info.name = raw_info.name.replace("HDR10", "HDR").replace(/ 10bit/gi, "").replace(/ Complete/gi, "");
+            raw_info.name = raw_info.name.replace(/HDR10(?!\+)/g, 'HDR');
             raw_info.name = raw_info.name.replace(/ 10bit/gi, "").replace(/ Complete/gi, "");
 
             if (raw_info.descr.match(/mpls/i)){

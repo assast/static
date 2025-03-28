@@ -291,6 +291,7 @@ style.textContent += `
   border-collapse: collapse;
   margin-top: 10px;
   color: #000;
+  max-height:60%
 }
 
 .daemon-table th,
