@@ -95,7 +95,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      1.0.0.57
+// @version      1.0.0.58
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -21492,11 +21492,17 @@ function auto_feed() {
                         $('.fill_number').css({'backgroundColor': 'rgb(70, 77, 96)'});
                         $('.fill_number').click(function(){
                             $('#autotmdb').val($(this).attr('name'));
+                            $('#auto_tmdb_movie').val($(this).attr('name'));
                             $table.slideUp(500);
                             window.scrollTo(0, 500);
                         });
 
                         $('#autotmdb').change(function(){
+                            if (!$(this).val()){
+                                $table.slideDown(1000);
+                            }
+                        });
+                        $('#auto_tmdb_movie').change(function(){
                             if (!$(this).val()){
                                 $table.slideDown(1000);
                             }
@@ -21525,10 +21531,13 @@ function auto_feed() {
                     console.log(data)
                     if (data.movie_results.length) {
                         $('#autotmdb').val(data.movie_results[0].id);
+                        $('#auto_tmdb_movie').val(data.movie_results[0].id);
                     } else if (data.tv_results.length) {
                         $('#autotmdb').val(data.tv_results[0].id);
+                        $('#auto_tmdb_movie').val(data.tv_results[0].id);
                     } else if (data.tv_episode_results.length) {
                         $('#autotmdb').val(data.tv_episode_results[0].show_id);
+                        $('#auto_tmdb_movie').val(data.tv_episode_results[0].show_id);
                     }
                     if (!$('#tmdbauto').val()) {
                         search_by_name(search_name);
