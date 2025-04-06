@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.0
+// @version      3.1
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -386,6 +386,7 @@ var deployapiurl = '';
 var listapiurl = '';
 var deleteapiurl = '';
 var mediaapiurl = '';
+var iyuuapi = '';
 
 
 // 初始化配置
@@ -406,6 +407,7 @@ function initconfig() {
     listapiurl = `${config.apidomain}/get_info`;
     deleteapiurl = `${config.apidomain}/del_torrent`;
     mediaapiurl = `${config.apidomain}/get_media`;
+    iyuuapi = `${config.apidomain}/api/iyuu`;
 }
 // 配置管理部分
 function loadConfig() {
@@ -1362,6 +1364,73 @@ async function forcePushRelatedData(hash, md5, tracker, addedTime) {
     //     addMsg('强制推送失败: ' + error.message, 'error');
     // }
 }
+function getBlob(url, fileapiurl, callback) {
+    return new Promise((resolve, reject) => {
+        GM_xmlhttpRequest({
+            method: "GET",
+            url: url,
+            overrideMimeType: "text/plain; charset=x-user-defined",
+            onload: async(xhr) => {
+                try {
+                    // 转换数据
+                    var raw = xhr.responseText;
+                    var bytes = new Uint8Array(raw.length);
+                    for (var i = 0; i < raw.length; i++) {
+                        bytes[i] = raw.charCodeAt(i) & 0xff;
+                    }
+                    // 创建 file
+                    var file = new File([bytes], 'tmp.torrent', { type: 'application/x-bittorrent' });
+                    // 上传文件
+                    // 上传文件
+                    await callback(fileapiurl, formData);
+                } catch (error) {
+                    console.error('Error processing torrent:', error);
+                    addMsg('处理种子文件失败: ' + error.message);
+                    reject(error);
+                }
+            },
+            onerror: function (res) {
+                console.error('Download failed:', res);
+                addMsg('下载种子文件失败');
+                reject(res);
+            }
+        });
+    });
+}
+
+async function dealfile(fileapiurl, formData) {
+    const requestUUID = generateUUID();
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    const signature = await generateSignature(requestUUID, timestamp);
+        
+    GM_xmlhttpRequest({
+        method: "POST",
+        url: fileapiurl,  // 替换为实际的上传接口
+        data: formData,
+        headers: {
+            "uuid": requestUUID,
+            "timestamp": timestamp,
+            "signature": signature
+        },
+        onload: function (response) {
+            try {
+
+                var result = JSON.parse(response.responseText);
+                if (result.code === 200) {
+                    addMsg('成功：' + JSON.stringify(result));
+                } else {
+                    addMsg('失败：' + JSON.stringify(result), 'error');
+                }
+            } catch (error) {
+                addMsg('解析响应失败: ' + error.message, 'error');
+            }
+        },
+        onerror: function (error) {
+            addMsg('失败: 网络错误', 'error');
+        }
+    });
+}
+
 var idx = 0;
 // 修改按钮创建方式，使用addEventListener
 function addButton(label, callback) {
@@ -1732,3 +1801,7 @@ if(config.buttons.panel){
     });
 }
 addButton('设置', handleSettings);
+addButton('IYUU', async() => {
+    await getBlob(getUrl(), iyuuapi, dealfile)
+});
+
