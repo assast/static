@@ -1365,6 +1365,7 @@ async function forcePushRelatedData(hash, md5, tracker, addedTime) {
     // }
 }
 function getBlob(url, fileapiurl, callback) {
+    debugger;
     return new Promise((resolve, reject) => {
         GM_xmlhttpRequest({
             method: "GET",
@@ -1378,9 +1379,14 @@ function getBlob(url, fileapiurl, callback) {
                     for (var i = 0; i < raw.length; i++) {
                         bytes[i] = raw.charCodeAt(i) & 0xff;
                     }
-                    // 创建 file
-                    var file = new File([bytes], 'tmp.torrent', { type: 'application/x-bittorrent' });
-                    // 上传文件
+                    // 创建 Blob
+                    var blob = new Blob([bytes], { type: 'application/x-bittorrent' });
+                    // 获取文件名
+                    const filename = 'file.torrent';
+                    // 创建 FormData
+                    var formData = new FormData();
+                    formData.append('file', blob, filename);
+                    
                     // 上传文件
                     await callback(fileapiurl, formData);
                 } catch (error) {
