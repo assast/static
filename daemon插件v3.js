@@ -1404,7 +1404,7 @@ function getBlob(url, fileapiurl, callback) {
     });
 }
 
-async function dealfile(fileapiurl, formData) {
+async function iyuuQuery(fileapiurl, formData) {
     const requestUUID = generateUUID();
     const timestamp = Math.floor(Date.now() / 1000).toString();
     const signature = await generateSignature(requestUUID, timestamp);
@@ -1420,12 +1420,11 @@ async function dealfile(fileapiurl, formData) {
         },
         onload: function (response) {
             try {
-
                 var result = JSON.parse(response.responseText);
-                if (result.code === 200) {
-                    addMsg('成功：' + JSON.stringify(result));
+                if (result.status === 'success') {
+                    addMsg('查询辅种成功: ' + result.message);
                 } else {
-                    addMsg('失败：' + JSON.stringify(result), 'error');
+                    addMsg('查询辅种失败：' + result.message, 'error');
                 }
             } catch (error) {
                 addMsg('解析响应失败: ' + error.message, 'error');
@@ -1808,6 +1807,6 @@ if(config.buttons.panel){
 }
 addButton('设置', handleSettings);
 addButton('IYUU', async() => {
-    await getBlob(getUrl(), iyuuapi, dealfile)
+    await getBlob(getUrl(), iyuuapi, iyuuQuery)
 });
 
