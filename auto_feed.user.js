@@ -64,7 +64,6 @@
 // @match        http*://cinemaz.to/torrent/*
 // @match        https://zhuque.in/torrent/*
 // @match        https://www.yemapt.org/*
-// @match        https://beyond-hd.me/download_check/*
 // @match        http*://passthepopcorn.me/torrents.php?id*
 // @match        http*://*php?id=*&torrentid=*
 // @match        http*://*/*php?id=*&torrentid=*
