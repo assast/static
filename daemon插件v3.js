@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.1
+// @version      3.2
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -1389,6 +1389,7 @@ function getBlob(url, fileapiurl, callback) {
                     
                     // 上传文件
                     await callback(fileapiurl, formData);
+                    resolve();
                 } catch (error) {
                     console.error('Error processing torrent:', error);
                     addMsg('处理种子文件失败: ' + error.message);
