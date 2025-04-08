@@ -94,7 +94,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      1.0.0.58
+// @version      1.0.0.59
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -22470,6 +22470,14 @@ function auto_feed() {
             }
             $('select[name="team_sel[4]"]').val(5);
             check_team(raw_info, 'team_sel[4]');
+
+            var source_box = $('select[name="source_sel[4]"]');
+            source_box.val(11);
+            var source_dict = {'大陆': 1,'香港': 2,'台湾': 3,'欧美': 4,'日本': 5,'韩国': 6,'泰国': 7,'印度': 8,'俄罗斯': 9,'': 11};
+            if (source_dict.hasOwnProperty(raw_info.source_sel)){
+                var index = source_dict[raw_info.source_sel];
+                source_box.val(index);
+            }
         }
 
         else if (forward_site == 'Panda') {
