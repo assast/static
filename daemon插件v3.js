@@ -1675,17 +1675,18 @@ if (site_url.match(/details.php\?id=\d+&uploaded=1/) || site_url.match(/torrents
 }
 if (site_url.match(/upload.php/) || site_url.match(/upload#separator/)) {
     addButton('发布', () => {
-        const publishButton = document.querySelector('input[value="发布"]');
-        if (publishButton) {
-            publishButton.click();
-        } else {
-            publishButton = document.querySelector('button[type*="submit"]');
-            if (publishButton) {
-                publishButton.click();
-            } else {
-                addMsg('未找到发布按钮！');
+        var publishButton = document.querySelector('input[value="发布"]');
+        if (!publishButton) {
+            publishButton = document.querySelector('button.ant-btn-primary[type="submit"]');
+            if(publishButton){
+                getFile(getUrl())
             }
         }
+        if (!publishButton) {
+            addMsg('未找到发布按钮！');
+            return;
+        }
+        publishButton.click();
     });
 
     if(config.buttons.media){
