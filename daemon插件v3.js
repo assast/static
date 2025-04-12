@@ -1679,7 +1679,6 @@ if (site_url.match(/upload.php/) || site_url.match(/upload#separator/)) {
         if (!publishButton) {
             publishButton = document.querySelector('button.ant-btn-primary[type="submit"]');
             if(publishButton){
-                getFile(getUrl())
             }
         }
         if (!publishButton) {
