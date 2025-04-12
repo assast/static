@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.2
+// @version      3.3
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -417,9 +417,11 @@ function loadConfig() {
         buttons: {
             panel: true,
             leechtorrent: false,
+            leechtorrent1: false,
             media: false,
             pjietu: false,
-            ijietu: false
+            ijietu: false,
+            iyuu: false
         },
         notautopush: []
     };
@@ -1672,34 +1674,39 @@ if (site_url.match(/details.php\?id=\d+&uploaded=1/) || site_url.match(/torrents
     }
 }
 if (site_url.match(/upload.php/) || site_url.match(/upload#separator/)) {
-    addButton('点击发布', () => {
+    addButton('发布', () => {
         const publishButton = document.querySelector('input[value="发布"]');
         if (publishButton) {
             publishButton.click();
         } else {
-            addMsg('未找到发布按钮！');
+            publishButton = document.querySelector('button[type*="submit"]');
+            if (publishButton) {
+                publishButton.click();
+            } else {
+                addMsg('未找到发布按钮！');
+            }
         }
     });
 
     if(config.buttons.media){
-        addButton('获取媒体信息', () => {
+        addButton('媒体信息', () => {
             return get_media('media'); // 返回 Promise
         });
     }
     if(config.buttons.pjietu){
-        addButton('截图ptpimg', () => {
+        addButton('截|ptpimg', () => {
             return get_media('pjietu'); // 返回 Promise
         });
     }
     if(config.buttons.ijietu){
-        addButton('截图imgbox', () => {
+        addButton('截|imgbox', () => {
             return get_media('ijietu'); // 返回 Promise
         });
     }
 }
 // 添加按钮
 if (site_url.match(/torrents/) || site_url.match(/detail\//) || site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
-    addButton('编辑种子', () => {
+    addButton('编辑', () => {
 
         const editButton = document.querySelector('a[href*="edit.php"]');
         if (editButton) {
@@ -1708,10 +1715,10 @@ if (site_url.match(/torrents/) || site_url.match(/detail\//) || site_url.match(/
             addMsg('未找到编辑按钮！');
         }
     });
-    addButton('发|推送种子', () => {
+    addButton('发|推送', () => {
         return getFile(getUrl()); // 返回 Promise
     });
-    addButton('发|本地种子', () => {
+    addButton('发|本地', () => {
         return new Promise((resolve, reject) => {
             const input = document.createElement('input');
             input.type = 'file';
@@ -1743,11 +1750,13 @@ if (site_url.match(/torrents/) || site_url.match(/detail\//) || site_url.match(/
         });
     });
     if(config.buttons.leechtorrent){
-        addButton('进|推送种子', () => {
+        addButton('进|推送', () => {
             if (!confirm(`确定进货？`)) return new Promise((resolve) => { });
             return getFile(getUrl(), true);
         });
-        addButton('进|本地种子', () => {
+    }
+    if(config.buttons.leechtorrent1){
+        addButton('进|本地', () => {
             return new Promise((resolve, reject) => {
                 const input = document.createElement('input');
                 input.type = 'file';
@@ -1800,14 +1809,16 @@ if (site_url.match(/edit.php/)) {
 // addButton('推送链接', () => {
 //     sendTorrentLink(getUrl())
 // });
-
+if(config.buttons.iyuu){
+    addButton('IYUU', async() => {
+        await getBlob(getUrl(), iyuuapi, iyuuQuery)
+    });
+}
 if(config.buttons.panel){
     addButton('面板', () => {
         return listTorrent(); // 返回 Promise
     });
 }
 addButton('设置', handleSettings);
-addButton('IYUU', async() => {
-    await getBlob(getUrl(), iyuuapi, iyuuQuery)
-});
+
 
