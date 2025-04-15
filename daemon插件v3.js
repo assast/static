@@ -387,8 +387,8 @@ var listapiurl = '';
 var deleteapiurl = '';
 var mediaapiurl = '';
 var iyuuapi = '';
-// var rssapi = 'http://100.94.3.9:40001/api/autobrr/rss_announce?apikey=';
-var rssapi = 'http://127.0.0.1:8080/api/autobrr/rss_announce?apikey=';
+var rssapi = 'http://100.94.3.9:40001/api/autobrr/rss_announce?apikey=';
+// var rssapi = 'http://127.0.0.1:8080/api/autobrr/rss_announce?apikey=';
 
 // 初始化配置
 var config = {};
