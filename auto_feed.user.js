@@ -94,7 +94,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      1.0.0.59
+// @version      1.0.0.60
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -25621,11 +25621,14 @@ function auto_feed() {
                 case 'Flac': audiocodec_box.val(1); break;
                 case 'MP3': audiocodec_box.val(4); break;
                 case 'WAV': audiocodec_box.val(15); break;
+                case 'M4A': audiocodec_box.val(16); break;
                 case 'DTS': audiocodec_box.val(3); break;
                 case 'DTS-HDMA': case 'DTS-HDHR': audiocodec_box.val(8); break;
+                case 'DTS-HDMA:X 7.1': case 'DTS-X': audiocodec_box.val(18);break;
                 case 'TrueHD': audiocodec_box.val(9); break;
                 case 'LPCM':audiocodec_box.val(10); break;
                 case 'AC3': audiocodec_box.val(11); break;
+                case 'EAC3': case 'DDP': audiocodec_box.val(19); break;
                 case 'Atmos': audiocodec_box.val(17); break;
                 case 'APE': audiocodec_box.val(2); break;
                 case 'AAC': audiocodec_box.val(6); break;
