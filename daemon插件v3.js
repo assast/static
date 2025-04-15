@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.3
+// @version      3.4
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -387,7 +387,8 @@ var listapiurl = '';
 var deleteapiurl = '';
 var mediaapiurl = '';
 var iyuuapi = '';
-
+// var rssapi = 'http://100.94.3.9:40001/api/autobrr/rss_announce?apikey=';
+var rssapi = 'http://127.0.0.1:8080/api/autobrr/rss_announce?apikey=';
 
 // 初始化配置
 var config = {};
@@ -421,7 +422,8 @@ function loadConfig() {
             media: false,
             pjietu: false,
             ijietu: false,
-            iyuu: false
+            iyuu: false,
+            add2DB: false
         },
         notautopush: []
     };
@@ -1020,6 +1022,40 @@ async function sendTorrentFile(torrentFile, leechtorrent) {
     });
 }
 
+async function add2DB(torrentLink) {
+    return new Promise((resolve, reject) => {
+        const payload = {
+            TorrentUrl: torrentLink
+        };
+
+        GM_xmlhttpRequest({
+            method: "POST",
+            url: rssapi+config.apikey,
+            headers: {
+                "Content-Type": "application/json"
+            },
+            data: JSON.stringify(payload),
+            onload: function (response) {
+                console.log(response.responseText);
+                var result = JSON.parse(response.responseText);
+                if (response.status == 200 && result.status === 'success') {
+                    var msg = [
+                        '添加到数据库成功'
+                    ].join('\n');
+                    addMsg(msg);
+                    resolve();
+                } else {
+                    var msg = [
+                        '添加到数据库成功失败',
+                        '失败原因: ' + result.message
+                    ].join('\n');
+                    addMsg(msg, 'error');
+                    reject(result.message);
+                }
+            }
+        });
+    });
+}
 
 async function listTorrent() {
     try {
@@ -1812,6 +1848,11 @@ if (site_url.match(/edit.php/)) {
 if(config.buttons.iyuu){
     addButton('IYUU', async() => {
         await getBlob(getUrl(), iyuuapi, iyuuQuery)
+    });
+}
+if(config.buttons.add2DB){
+    addButton('入库', async() => {
+        await add2DB(getUrl())
     });
 }
 if(config.buttons.panel){
