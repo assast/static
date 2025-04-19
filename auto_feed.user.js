@@ -94,7 +94,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      1.0.0.62
+// @version      1.0.0.63
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -16580,7 +16580,7 @@ function auto_feed() {
             } else {
                 switch (raw_info.audiocodec_sel){
                     case 'DTS-HDMA:X 7.1': case 'DTS-X': audiocodec_box.val(25);
-                    case 'DTS-HD': case 'DTS-HDMA': case 'DTS-HDHR':
+                    case 'DTS-HD': case 'DTS-HDMA':
                         if (raw_info.name.match(/(X|MA).?7[\. ]1/i)) {
                             audiocodec_box.val(25);
                         } else {
@@ -16590,7 +16590,7 @@ function auto_feed() {
                     case 'TrueHD': audiocodec_box.val(20); break;
                     case 'Atmos': audiocodec_box.val(26); break;
                     case 'LPCM': audiocodec_box.val(21); break;
-                    case 'DTS': audiocodec_box.val(3); break;
+                    case 'DTS': case 'DTS-HDHR': audiocodec_box.val(3); break;
                     case 'AC3': audiocodec_box.val(18); break;
                     case 'AAC': audiocodec_box.val(6); break;
                     case 'Flac': audiocodec_box.val(1); break;
