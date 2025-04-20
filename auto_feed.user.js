@@ -22427,11 +22427,9 @@ function auto_feed() {
             var codec_box = $('select[name="codec_sel[4]"]');
             codec_box.val(5);
             switch (raw_info.codec_sel){
-                case 'H265': codec_box.val(7); break;
-                case 'H264': codec_box.val(1); break;
+                case 'H265':case 'X265': codec_box.val(7); break;
+                case 'H264':case 'X264': codec_box.val(1); break;
                 case 'VC-1': codec_box.val(2); break;
-                case 'X265': codec_box.val(8); break;
-                case 'X264': codec_box.val(6); break;
                 case 'MPEG-2': codec_box.val(4); break;
                 case 'XVID': codec_box.val(3);
             }
