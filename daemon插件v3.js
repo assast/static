@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.4
+// @version      3.5
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -17,6 +17,8 @@
 // @grant        GM_download
 
 // @license MIT
+// @downloadURL https://update.greasyfork.org/scripts/531973/daemon%E6%8F%92%E4%BB%B6v3.user.js
+// @updateURL https://update.greasyfork.org/scripts/531973/daemon%E6%8F%92%E4%BB%B6v3.meta.js
 // ==/UserScript==
 
 // 在脚本开头添加样式表
@@ -1725,17 +1727,17 @@ if (site_url.match(/upload.php/) || site_url.match(/upload#separator/)) {
     });
 
     if(config.buttons.media){
-        addButton('媒体信息', () => {
+        addButton('media', () => {
             return get_media('media'); // 返回 Promise
         });
     }
     if(config.buttons.pjietu){
-        addButton('截|ptpimg', () => {
+        addButton('截ptpimg', () => {
             return get_media('pjietu'); // 返回 Promise
         });
     }
     if(config.buttons.ijietu){
-        addButton('截|imgbox', () => {
+        addButton('截imgbox', () => {
             return get_media('ijietu'); // 返回 Promise
         });
     }
