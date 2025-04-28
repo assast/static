@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.5
+// @version      3.6
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -127,18 +127,19 @@ style.textContent += `
 // 在样式表中添加新样式
 style.textContent += `
 .daemon-list {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 70%;
-//   max-width: 1000px;
-  max-height: 90vh;
-  background: white;
-  box-shadow: 0 0 20px rgba(0,0,0,0.2);
-  z-index: 10000;
-  transition: all 0.3s ease;
-  display: none; /* 默认隐藏 */
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 85vw;      /* 占据视口98%宽度 */
+    max-width: none;   /* 移除最大宽度限制 */
+    height: 90vh;
+    background: white;
+    box-shadow: 0 0 20px rgba(0,0,0,0.2);
+    z-index: 10000;
+    display: none;
+    border-radius: 8px;
+    overflow: hidden;
 }
 
 .daemon-list.visible {
@@ -287,13 +288,23 @@ style.textContent += `
 style.textContent += `
 /* 主表格样式 */
 .daemon-table {
-  width: 98%;
-  border-collapse: collapse;
-  margin-top: 10px;
-  color: #000;
-  max-height:60%
+    width: 100%;
+    min-height: 400px; /* 最小高度保证容器尺寸 */
+    max-height: calc(90vh - 60px);
+    display: block;
+    overflow: auto;
+    table-layout: fixed; /* 固定表格布局 */
+    border-collapse: collapse;
 }
-
+/* 表头强制显示 */
+.daemon-table thead {
+    display: table-header-group; /* 始终显示表头 */
+    width: 100%;
+}
+/* 数据行高度适配 */
+.daemon-table tbody tr {
+    height: 50px; /* 固定行高保持布局 */
+}
 .daemon-table th,
 .daemon-table td {
   padding: 8px;
@@ -301,47 +312,24 @@ style.textContent += `
   text-align: left;
   font-size: 12px;
   vertical-align: top;
-  color: #000 !important; /* 新增强制黑色字体 */
-  text-align: center; /* 文本居中 */
-  vertical-align: middle; /* 垂直居中 */
-  background-color: #f8f9fa;
-}
-
-.daemon-table th {
-  background-color: #f8f9fa;
-}
-
-/* 嵌套表格样式 */
-.nested-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 5px;
-  color: #000;
-  background-color: #f8f9fa;
-}
-
-.nested-table th,
-.nested-table td {
-  padding: 5px;
-  border: 1px solid #ccc;
-  text-align: left;
-  font-size: 10px;
-  vertical-align: top;
-  color: #000 !important; /* 新增强制黑色字体 */
   text-align: center; /* 文本居中 */
   vertical-align: middle; /* 垂直居中 */
 }
 
-.nested-table th {
-  background-color: #e9ecef;
+/* 响应式处理 */
+.torrent-name {
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 400px;
 }
 
-/* 操作按钮样式 */
+/* 操作按钮适配 */
 .action-buttons {
-  display: flex;
-  gap: 5px;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
 }
-
 .delete-btn, .force-push-btn {
   padding: 4px 8px;
   border: none;
@@ -380,6 +368,87 @@ style.textContent += `
 .refresh-btn:hover {
   color: #007bff;
 }
+
+/* 状态指示样式 */
+.status-true {
+    background: #e6ffed;          /* 浅绿色背景 */
+    color: #00994d;              /* 深绿色文字 */
+    font-weight: 500;
+    border-left: 3px solid #00cc66; /* 左侧状态条 */
+    position: relative;
+}
+
+.status-false {
+    background: #fff0f0;         /* 浅红色背景 */
+    color: #cc0000;              /* 深红色文字 */
+    font-weight: 500;
+    border-left: 3px solid #ff6666; /* 左侧状态条 */
+    position: relative;
+}
+
+/* 状态标签增强 */
+.status-true::after {
+    content: "✓";
+    position: absolute;
+    right: 8px;
+    color: #00994d;
+    font-weight: bold;
+}
+
+/* 无数据状态样式 */
+.no-data-cell {
+    position: relative;
+    height: 200px; /* 固定高度保证可视区域 */
+}
+
+.no-data-wrapper {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #999;
+    font-size: 1.2em;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+    .status-true, .status-false {
+        font-size: 12px;
+        padding: 4px 8px;
+    }
+    
+    .status-true::after, 
+    .status-false::after {
+        right: 2px;
+        font-size: 0.8em;
+    }
+    .no-data-cell {
+        height: 150px; /* 移动端减少高度 */
+    }
+    
+    .no-data-wrapper {
+        font-size: 1em;
+        padding: 0 15px;
+        text-align: center;
+    }
+    .daemon-list {
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+    }
+    
+    .daemon-table {
+        font-size: 12px;
+        min-height: 300px; /* 适配移动端高度 */
+    }
+    
+    .action-buttons button {
+        padding: 3px 6px;
+        font-size: 12px;
+    }
+}
+
+
 
 `;
 // daemon接口配置
@@ -1089,13 +1158,10 @@ async function listTorrent() {
         if (response.status == 200) {
             const data = JSON.parse(response.responseText);
             if (data.status === "success" && data.action === "GETINFO") {
-                const torrents = data.data.deployment_torrents_queue;
+                const torrents = data.data;
                 const tableHTML = generateTableHTML(torrents);
 
-                const pre_leech_torrents = data.data.pre_leech_torrents;
-                const leechTableHTML = generatLeechTableHTML(pre_leech_torrents);
-
-                displayTable(tableHTML, leechTableHTML);
+                displayTable(tableHTML);
             } else {
                 addMsg('查询成功，但数据格式不正确', 'error');
                 throw new Error('数据格式不正确');
@@ -1117,122 +1183,60 @@ function generateTableHTML(torrents) {
         <table class="daemon-table">
             <thead>
                 <tr>
-                    <th style="width:30%">发布列表</th>
-                    <th>可用</th>
-                    <th>添加时间</th>
-                    <th>相关数据</th>
+                    <th style="width:6%">类型</th>
+                    <th style="width:30%">名称</th>
+                    <th style="width:10%">Tracker</th>
+                    <th style="width:8%">添加时间</th>
+                    <th style="width:8%">修改时间</th>
+                    <th style="width:6%">可用</th>
+                    <th style="width:6%">已推</th>
+                    <th style="width:6%">优先级</th>
+                    <th style="width:10%">备注</th>
+                    <th style="width:10%">操作</th>
                 </tr>
             </thead>
-            <tbody>
-    `;
+            <tbody>`;
 
     if (!torrents || torrents.length === 0) {
         tableHTML += `
             <tr>
-                <td colspan="4">无发布列表</td>
-            </tr>
-        `;
-    } else {
-        torrents.forEach(torrent => {
-            tableHTML += `
-                <tr>
-                    <td style="width:30%; word-wrap:break-word;">${torrent.torrent_name}</td>
-                    <td>${torrent.isavailable ? '是' : '否'}</td>
-                    <td>${new Date(torrent.added * 1000).toLocaleString()}</td>
-                    <td>${generateRelatedDataTable(torrent.related_data)}</td>
-                </tr>
-            `;
-        });
-    }
-
-    tableHTML += `
-            </tbody>
-        </table>
-    `;
-
-    return tableHTML;
-}
-function generatLeechTableHTML(torrents) {
-    let tableHTML = `
-        <table class="daemon-table">
-            <thead>
-                <tr>
-                    <th style="width:70%">进货列表</th>
-                    <th>添加时间</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-    if (!torrents || torrents.length === 0) {
-        tableHTML += `
-            <tr>
-                <td colspan="2">无进货列表</td>
-            </tr>
-        `;
-    } else {
-        torrents.forEach(torrent => {
-            tableHTML += `
-                <tr>
-                    <td style="width:30%; word-wrap:break-word;">${torrent.torrent_name}</td>
-                    <td>${new Date(torrent.added * 1000).toLocaleString()}</td>
-                </tr>
-            `;
-        });
-    }
-
-    tableHTML += `
-            </tbody>
-        </table>
-    `;
-
-    return tableHTML;
-}
-function generateRelatedDataTable(relatedData) {
-    if (!relatedData || relatedData.length === 0) {
-        return '无相关数据';
-    }
-
-    let nestedTableHTML = `
-        <table class="nested-table">
-            <thead>
-                <tr>
-                    <th>Tracker</th>
-                    <th>已推</th>
-                    <th>优先级</th>
-                    <th>添加时间</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-
-    relatedData.forEach(data => {
-        nestedTableHTML += `
-            <tr data-hash="${data[1]}" data-md5="${data[6]}">
-                <td>${data[2]}</td>
-                <td>${data[3] ? '是' : '否'}</td>
-                <td>${data[4]}</td>
-                <td>${new Date(data[5] * 1000).toLocaleString()}</td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="delete-btn">删除</button>
-                        <button class="force-push-btn">强推</button>
-                    </div>
+                <td colspan="10" class="no-data-cell">
+                    <div class="no-data-wrapper">暂无数据</div>
                 </td>
-            </tr>
-        `;
-    });
+            </tr>`;
+    } else {
+        torrents.forEach(torrent => {
+            // 新增样式类判断逻辑
+            const typeClass = torrent.queue_type == '1' ? 'status-true' : 'status-false';
+            const availableClass = torrent.isavailable ? 'status-true' : 'status-false';
+            const pushedClass = torrent.ispushed ? 'status-true' : 'status-false';
 
-    nestedTableHTML += `
-            </tbody>
-        </table>
-    `;
+            tableHTML += `
+                <tr data-id="${torrent.id}" data-hash="${torrent.torrent_hash}">
+                    <td class="${typeClass}">${torrent.queue_type == '1' ? '发布' : '进货'}</td>
+                    <td class="torrent-name">${torrent.torrent_name}</td>
+                    <td>${torrent.torrent_tracker}</td>
+                    <td>${torrent.create_time}</td>
+                    <td>${torrent.modify_time}</td>
+                    <td class="${availableClass}">${torrent.isavailable ? '可用' : '不可用'}</td>
+                    <td class="${pushedClass}">${torrent.ispushed ? '已推' : '未推'}</td>
+                    <td>${torrent.sort}</td>
+                    <td>${torrent.remark ? torrent.remark : ""}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="delete-btn" title="删除">🗑️</button>
+                            <button class="force-push-btn" title="强制推送">⚡</button>
+                        </div>
+                    </td>
+                </tr>`;
+        });
+    }
+    tableHTML += `</tbody></table>`;
 
-    return nestedTableHTML;
+    return tableHTML;
 }
 
-
-function displayTable(tableHTML, leechTableHTML) {
+function displayTable(tableHTML) {
     const container = document.getElementById('daemon-list');
     if (!container) {
         const newContainer = createListContainer();
@@ -1242,10 +1246,6 @@ function displayTable(tableHTML, leechTableHTML) {
                 <strong style="font-size:1.2em">种子监控面板</strong>
                 <button class="refresh-btn" title="刷新">🔄</button>
                 <button class="close-btn" title="关闭">×</button>
-            </div>
-
-            <div class="list-content">
-                ${leechTableHTML}
             </div>
             <div class="list-content">
                 ${tableHTML}
@@ -1257,10 +1257,6 @@ function displayTable(tableHTML, leechTableHTML) {
                 <strong style="font-size:1.2em">种子监控面板</strong>
                 <button class="refresh-btn" title="刷新">🔄</button>
                 <button class="close-btn" title="关闭">×</button>
-            </div>
-
-            <div class="list-content">
-                ${leechTableHTML}
             </div>
             <div class="list-content">
                 ${tableHTML}
