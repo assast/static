@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.7
+// @version      3.8
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -456,6 +456,7 @@ var apiurl = '';
 var deployapiurl = '';
 var listapiurl = '';
 var deleteapiurl = '';
+var forceapiurl = '';
 var mediaapiurl = '';
 var iyuuapi = '';
 var rssapi = 'http://100.94.3.9:40001/api/autobrr/rss_announce?apikey=';
@@ -478,6 +479,7 @@ function initconfig() {
     deployapiurl = `${config.apidomain}/force_deploy`;
     listapiurl = `${config.apidomain}/get_info`;
     deleteapiurl = `${config.apidomain}/del_torrent`;
+    forceapiurl = `${config.apidomain}/force_deploy_torrents`;
     mediaapiurl = `${config.apidomain}/get_media`;
     iyuuapi = `${config.apidomain}/api/iyuu`;
 }
@@ -1349,8 +1351,7 @@ async function deleteRelatedData(hash, md5, tracker, name) {
 
         const payload = {
             torrent_hash: hash,
-            torrent_md5: md5,
-            nodropqbit: true
+            torrent_md5: md5
         };
 
         GM_xmlhttpRequest({
@@ -1367,39 +1368,62 @@ async function deleteRelatedData(hash, md5, tracker, name) {
                 console.log("del torrent_hash:", hash);
                 console.log("Status Code:", response.status);
                 console.log(response.responseText);
+                
+                var result = JSON.parse(response.responseText);
                 if (response.status == 200) {
-                    addMsg('删除成功: \n' + response.responseText);
+                    addMsg(result.message);
                     listTorrent(); // 刷新列表
                 } else {
-                    var result = JSON.parse(response.responseText);
-                    var msg = [
-                        '删除失败',
-                        '失败原因: ' + result.message
-                    ].join('\n');
-                    addMsg(msg, 'error');
+                    addMsg(result.message, 'error');
                 }
             }
         });
     } catch (error) {
-        console.error('删除失败:', error);
-        addMsg('删除失败: ' + error.message, 'error');
+        console.error('失败:', error);
+        addMsg('失败: ' + error.message, 'error');
+    }
+}
+async function forcePushRelatedData(hash, md5, tracker, name) {
+    if (!confirm(`确定要强制推送以下相关数据吗？\n种子名: ${name}\nTracker: ${tracker}\nHash: ${hash}`)) return;
+
+    try {
+        const requestUUID = generateUUID();
+        const timestamp = Math.floor(Date.now() / 1000).toString();
+        const signature = await generateSignature(requestUUID, timestamp);
+
+        const payload = {
+            torrent_hash: hash
+        };
+
+        GM_xmlhttpRequest({
+            method: "POST",
+            url: forceapiurl,
+            headers: {
+                "Content-Type": "application/json",
+                "uuid": requestUUID,
+                "timestamp": timestamp,
+                "signature": signature
+            },
+            data: JSON.stringify(payload),
+            onload: function (response) {
+                console.log("force torrent_hash:", hash);
+                console.log("Status Code:", response.status);
+                console.log(response.responseText);
+                var result = JSON.parse(response.responseText);
+                if (response.status == 200) {
+                    addMsg(result.message);
+                    listTorrent(); // 刷新列表
+                } else {
+                    addMsg(result.message, 'error');
+                }
+            }
+        });
+    } catch (error) {
+        console.error('失败:', error);
+        addMsg('失败: ' + error.message, 'error');
     }
 }
 
-async function forcePushRelatedData(hash, md5, tracker, addedTime) {
-    if (!confirm(`确定要强制推送以下相关数据吗？\nTracker: ${tracker}\n添加时间: ${addedTime}\nHash: ${hash}`)) return;
-    addMsg("xiongdie 还没做呢，等做好了再点吧");
-    // try {
-    //     await doPostJson(deployapiurl, {
-    //         torrent_hash: hash,
-    //         torrent_md5: md5
-    //     });
-    //     addMsg('强制推送成功');
-    // } catch (error) {
-    //     console.error('强制推送失败:', error);
-    //     addMsg('强制推送失败: ' + error.message, 'error');
-    // }
-}
 function getBlob(url, fileapiurl, callback) {
     debugger;
     return new Promise((resolve, reject) => {
