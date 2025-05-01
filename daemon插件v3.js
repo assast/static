@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.6
+// @version      3.7
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -1212,7 +1212,7 @@ function generateTableHTML(torrents) {
             const pushedClass = torrent.ispushed ? 'status-true' : 'status-false';
 
             tableHTML += `
-                <tr data-id="${torrent.id}" data-hash="${torrent.torrent_hash}">
+                <tr data-id="${torrent.id}" data-hash="${torrent.torrent_hash}" data-name="${torrent.torrent_name}" data-tracker="${torrent.torrent_tracker}" >
                     <td class="${typeClass}">${torrent.queue_type == '1' ? '发布' : '进货'}</td>
                     <td class="torrent-name">${torrent.torrent_name}</td>
                     <td>${torrent.torrent_tracker}</td>
@@ -1300,15 +1300,15 @@ function displayTable(tableHTML) {
             debugger;
             const hash = row.dataset.hash;
             const md5 = row.dataset.md5;
-            const tracker = row.querySelector('td:nth-child(1)').textContent; // 获取 Tracker
-            const addedTime = row.querySelector('td:nth-child(4)').textContent; // 获取嵌套表格的添加时间
+            const tracker = row.dataset.tracker
+            const name = row.dataset.name
 
             if (deleteBtn) {
-                deleteRelatedData(hash, md5, tracker, addedTime);
+                deleteRelatedData(hash, md5, tracker, name);
             }
 
             if (forcePushBtn) {
-                forcePushRelatedData(hash, md5, tracker, addedTime);
+                forcePushRelatedData(hash, md5, tracker, name);
             }
         }
     });
@@ -1339,8 +1339,8 @@ function addMsg(msg, type) {
         msgBox.className = 'daemon-msg';
     }
 }
-async function deleteRelatedData(hash, md5, tracker, addedTime) {
-    if (!confirm(`确定要删除以下相关数据吗？\nTracker: ${tracker}\n添加时间: ${addedTime}\nHash: ${hash}`)) return;
+async function deleteRelatedData(hash, md5, tracker, name) {
+    if (!confirm(`确定要删除以下相关数据吗？\n种子名: ${name}\nTracker: ${tracker}\nHash: ${hash}`)) return;
 
     try {
         const requestUUID = generateUUID();
