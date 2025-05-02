@@ -94,7 +94,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      1.0.0.65
+// @version      1.0.0.66
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -14376,10 +14376,10 @@ function auto_feed() {
                     raw_info.name = raw_info.name.replace(/DTS-HD.?(HRA?).?(\d\.\d)/, 'DTS-HD $1 $2');
                     allinput[i].value = raw_info.name;
                 } else {
-                    if (forward_site == 'BLU') {
+                    if (forward_site == 'BLU' || forward_site == 'Aither') {
                         raw_info.name = raw_info.name.replace(/Remux/i, 'REMUX');
                         raw_info.name = raw_info.name.replace(/(Atmos)(.*?)(TrueHD)(.*?)(7.1)/, '$2$3 $5 $1').replace(/ +/g, ' ');
-                        if (raw_info.name.match(/DV HDR/i)) {
+                        if (forward_site == 'BLU' && raw_info.name.match(/DV HDR/i)) {
                             raw_info.name = raw_info.name.replace(/(1080|2160)[pi]/i, function(data){
                                 return 'Hybrid ' + data;
                             });
