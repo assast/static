@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.9
+// @version      3.10
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -9,7 +9,7 @@
 // @match        http*://*/edit.php*
 // @match        http*://*/torrents.php*
 // @match        https://kp.m-team.cc/*
-// @match        https://*/torrents*
+// @match        https://*/torrent*
 // @match        https://totheglory.im/t/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
@@ -1765,7 +1765,7 @@ if (site_url.match(/upload.php/) || site_url.match(/upload#separator/)) {
     }
 }
 // 添加按钮
-if (site_url.match(/torrents/) || site_url.match(/detail\//) || site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
+if (site_url.match(/torrent/) || site_url.match(/detail\//) || site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
     addButton('编辑', () => {
 
         const editButton = document.querySelector('a[href*="edit.php"]');
