@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.8
+// @version      3.9
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -1187,6 +1187,7 @@ function generateTableHTML(torrents) {
                 <tr>
                     <th style="width:6%">类型</th>
                     <th style="width:30%">名称</th>
+                    <th style="width:6%">大小</th>
                     <th style="width:10%">Tracker</th>
                     <th style="width:8%">添加时间</th>
                     <th style="width:8%">修改时间</th>
@@ -1194,7 +1195,7 @@ function generateTableHTML(torrents) {
                     <th style="width:6%">已推</th>
                     <th style="width:6%">优先级</th>
                     <th style="width:10%">备注</th>
-                    <th style="width:10%">操作</th>
+                    <th style="width:8%">操作</th>
                 </tr>
             </thead>
             <tbody>`;
@@ -1202,7 +1203,7 @@ function generateTableHTML(torrents) {
     if (!torrents || torrents.length === 0) {
         tableHTML += `
             <tr>
-                <td colspan="10" class="no-data-cell">
+                <td colspan="11" class="no-data-cell">
                     <div class="no-data-wrapper">暂无数据</div>
                 </td>
             </tr>`;
@@ -1217,6 +1218,7 @@ function generateTableHTML(torrents) {
                 <tr data-id="${torrent.id}" data-hash="${torrent.torrent_hash}" data-name="${torrent.torrent_name}" data-tracker="${torrent.torrent_tracker}" >
                     <td class="${typeClass}">${torrent.queue_type == '1' ? '发布' : '进货'}</td>
                     <td class="torrent-name">${torrent.torrent_name}</td>
+                    <td>${torrent.torrent_size}</td>
                     <td>${torrent.torrent_tracker}</td>
                     <td>${torrent.create_time}</td>
                     <td>${torrent.modify_time}</td>
