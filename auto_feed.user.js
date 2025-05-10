@@ -94,7 +94,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      1.0.0.69
+// @version      1.0.0.70
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -1072,7 +1072,7 @@ const default_site_info = {
     'ECUST': {'url': 'https://pt.ecust.pp.ua/', 'enable': 1},
     'iloli': {'url': 'https://share.ilolicon.com/', 'enable': 1},
     'CrabPt': {'url': 'https://crabpt.vip/', 'enable': 1},
-    'QingWa': {'url': 'https://qingwapt.com/', 'enable': 1},
+    'QingWa': {'url': 'https://www.qingwapt.org/', 'enable': 1},
     'FNP': {'url': 'https://fearnopeer.com/', 'enable': 1},
     'OnlyEncodes': {'url': 'https://onlyencodes.cc/', 'enable': 1},
     'PTFans': {'url': 'https://ptfans.cc/', 'enable': 1},
