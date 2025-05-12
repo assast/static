@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.10
+// @version      3.11
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -498,6 +498,7 @@ function loadConfig() {
             iyuu: false,
             add2DB: false
         },
+        isnotdownload: false,
         notautopush: []
     };
 
@@ -934,34 +935,80 @@ function processDownload() {
 
 function getFile(url, leechtorrent) {
     return new Promise((resolve, reject) => {
-        GM_xmlhttpRequest({
-            method: "GET",
-            url: url,
-            overrideMimeType: "text/plain; charset=x-user-defined",
-            onload: (xhr) => {
-                try {
-                    // 转换数据
-                    var raw = xhr.responseText;
-                    var bytes = new Uint8Array(raw.length);
-                    for (var i = 0; i < raw.length; i++) {
-                        bytes[i] = raw.charCodeAt(i) & 0xff;
+        debugger;
+        if(config.isnotdownload){
+            const requestUUID = generateUUID();
+            const timestamp = Math.floor(Date.now() / 1000).toString();
+            generateSignature(requestUUID, timestamp)
+                .then((signature) => {
+                    const payload = {
+                        torrent_link: url,
+                        forceadd: true,
+                        leechtorrent: leechtorrent || false
+                    };
+
+                    GM_xmlhttpRequest({
+                        method: "POST",
+                        url: apiurl,
+                        headers: {
+                            "Content-Type": "application/json",
+                            "uuid": requestUUID,
+                            "timestamp": timestamp,
+                            "signature": signature
+                        },
+                        data: JSON.stringify(payload),
+                        onload: function (response) {
+                            console.log(response.responseText);
+                            var result = JSON.parse(response.responseText);
+                            if (response.status == 200 && result.status === 'success') {
+                                var msg = [
+                                    '种子链接推送成功',
+                                    '种 子 名: ' + result.torrent_name,
+                                    'tracker: ' + result.tracker
+                                ].join('\n');
+                                addMsg(msg);
+                                resolve();
+                            } else {
+                                var msg = [
+                                    '种子链接推送失败',
+                                    '失败原因: ' + result.message
+                                ].join('\n');
+                                addMsg(msg, 'error');
+                                reject(result.message);
+                            }
+                        }
+                    });
+                });
+        } else {
+            GM_xmlhttpRequest({
+                method: "GET",
+                url: url,
+                overrideMimeType: "text/plain; charset=x-user-defined",
+                onload: (xhr) => {
+                    try {
+                        // 转换数据
+                        var raw = xhr.responseText;
+                        var bytes = new Uint8Array(raw.length);
+                        for (var i = 0; i < raw.length; i++) {
+                            bytes[i] = raw.charCodeAt(i) & 0xff;
+                        }
+                        // 创建 file
+                        var file = new File([bytes], 'tmp.torrent', { type: 'application/x-bittorrent' });
+                        // 上传文件
+                        sendTorrentFile(file, leechtorrent).then(resolve).catch(reject);
+                    } catch (error) {
+                        console.error('Error processing torrent:', error);
+                        addMsg('处理种子文件失败: ' + error.message);
+                        reject(error);
                     }
-                    // 创建 file
-                    var file = new File([bytes], 'tmp.torrent', { type: 'application/x-bittorrent' });
-                    // 上传文件
-                    sendTorrentFile(file, leechtorrent).then(resolve).catch(reject);
-                } catch (error) {
-                    console.error('Error processing torrent:', error);
-                    addMsg('处理种子文件失败: ' + error.message);
-                    reject(error);
+                },
+                onerror: function (res) {
+                    console.error('Download failed:', res);
+                    addMsg('下载种子文件失败');
+                    reject(res);
                 }
-            },
-            onerror: function (res) {
-                console.error('Download failed:', res);
-                addMsg('下载种子文件失败');
-                reject(res);
-            }
-        });
+            });
+        }
     });
 }
 
@@ -982,48 +1029,6 @@ function sha256(str) {
     const buffer = new TextEncoder().encode(str);
     return crypto.subtle.digest('SHA-256', buffer).then(hash => {
         return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
-    });
-}
-
-async function sendTorrentLink(torrentLink, leechtorrent) {
-    const requestUUID = generateUUID();
-    const timestamp = Math.floor(Date.now() / 1000).toString();
-    const signature = await generateSignature(requestUUID, timestamp);
-
-    const payload = {
-        torrent_link: torrentLink,
-        forceadd: true,
-        leechtorrent: leechtorrent || false
-    };
-
-    GM_xmlhttpRequest({
-        method: "POST",
-        url: apiurl,
-        headers: {
-            "Content-Type": "application/json",
-            "uuid": requestUUID,
-            "timestamp": timestamp,
-            "signature": signature
-        },
-        data: JSON.stringify(payload),
-        onload: function (response) {
-            console.log(response.responseText);
-            var result = JSON.parse(response.responseText);
-            if (response.status == 200 && result.status === 'success') {
-                var msg = [
-                    '种子链接推送成功',
-                    '种 子 名: ' + result.torrent_name,
-                    'tracker: ' + result.tracker
-                ].join('\n');
-                addMsg(msg);
-            } else {
-                var msg = [
-                    '种子链接推送失败',
-                    '失败原因: ' + result.message
-                ].join('\n');
-                addMsg(msg, 'error');
-            }
-        }
     });
 }
 
@@ -1370,7 +1375,7 @@ async function deleteRelatedData(hash, md5, tracker, name) {
                 console.log("del torrent_hash:", hash);
                 console.log("Status Code:", response.status);
                 console.log(response.responseText);
-                
+
                 var result = JSON.parse(response.responseText);
                 if (response.status == 200) {
                     addMsg(result.message);
@@ -1448,7 +1453,7 @@ function getBlob(url, fileapiurl, callback) {
                     // 创建 FormData
                     var formData = new FormData();
                     formData.append('file', blob, filename);
-                    
+
                     // 上传文件
                     await callback(fileapiurl, formData);
                     resolve();
@@ -1471,7 +1476,7 @@ async function iyuuQuery(fileapiurl, formData) {
     const requestUUID = generateUUID();
     const timestamp = Math.floor(Date.now() / 1000).toString();
     const signature = await generateSignature(requestUUID, timestamp);
-        
+
     GM_xmlhttpRequest({
         method: "POST",
         url: fileapiurl,  // 替换为实际的上传接口
@@ -1852,7 +1857,7 @@ if (site_url.match(/torrent/) || site_url.match(/detail\//) || site_url.match(/d
 if (site_url.match(/edit.php/)) {
     addButton('编辑完成', () => {
         debugger;
-        const editButton = document.querySelector('input[id="qr"]');
+        var editButton = document.querySelector('input[id="qr"]');
         if(!editButton){
             editButton = document.querySelector('input[value="编辑"]');
         }
@@ -1866,9 +1871,6 @@ if (site_url.match(/edit.php/)) {
         addMsg('未找到编辑按钮！');
     });
 }
-// addButton('推送链接', () => {
-//     sendTorrentLink(getUrl())
-// });
 if(config.buttons.iyuu){
     addButton('IYUU', async() => {
         await getBlob(getUrl(), iyuuapi, iyuuQuery)
