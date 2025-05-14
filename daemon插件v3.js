@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.11
+// @version      3.12
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -459,8 +459,7 @@ var deleteapiurl = '';
 var forceapiurl = '';
 var mediaapiurl = '';
 var iyuuapi = '';
-var rssapi = 'http://100.94.3.9:40001/api/autobrr/rss_announce?apikey=';
-// var rssapi = 'http://127.0.0.1:40000/api/autobrr/rss_announce?apikey=';
+var rssapi = '';
 
 // 初始化配置
 var config = {};
@@ -482,10 +481,12 @@ function initconfig() {
     forceapiurl = `${config.apidomain}/force_deploy_torrents`;
     mediaapiurl = `${config.apidomain}/get_media`;
     iyuuapi = `${config.apidomain}/api/iyuu`;
+    rssapi = `${config.rssapidomain}/api/autobrr/rss_announce?apikey=${config.apikey}`;
 }
 // 配置管理部分
 function loadConfig() {
     const defaultConfig = {
+        rssapidomain: 'https://xx.xx.xx:8443',
         apidomain: 'https://xx.xx.xx:8443',
         apikey: 'defaultKey',
         buttons: {
@@ -1108,7 +1109,7 @@ async function add2DB(torrentLink) {
 
         GM_xmlhttpRequest({
             method: "POST",
-            url: rssapi+config.apikey,
+            url: rssapi,
             headers: {
                 "Content-Type": "application/json"
             },
