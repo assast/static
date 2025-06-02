@@ -94,7 +94,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      1.0.0.70
+// @version      1.0.0.71
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -12351,12 +12351,12 @@ function auto_feed() {
                 else{
                     img_url = used_site_info[key].url + 'favicon.ico';
                 }
-
-                if (origin_site != 'mam') {
-                    img_url_wsrv = 'https://wsrv.nl/?url=' + img_url;
-                } else {
-                    img_url_wsrv = img_url;
-                }
+                img_url_wsrv = img_url;
+                // if (origin_site != 'mam') {
+                //     img_url_wsrv = 'https://wsrv.nl/?url=' + img_url;
+                // } else {
+                //     img_url_wsrv = img_url;
+                // }
                 para.innerHTML = '<div style="display:inline-block; margin-bottom: 2px;"><img src="' + img_url_wsrv +
                                  '"onerror="this.onerror=null; this.src=' + "'" + img_url + "'" +
                                  '"class="round_icon" style="display:inline-block">' + key + '</div>';
