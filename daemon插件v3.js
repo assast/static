@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.12
+// @version      3.13
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -1693,13 +1693,13 @@ async function get_media(command) {
                                     '[/hide]'
                                 ].join('\n');
                                 showMediaInfo(msg); // 使用 showMediaInfo 展示结果
-                            } else if (now_site == 'UBits') {
+                            } /*else if (now_site == 'UBits') {
                                 var technical_info = document.getElementsByName('technical_info');
                                 if(technical_info){
                                     technical_info[0].value = result.data.output;
                                 }
                                 addMsg('获取媒体信息成功,已自动替换');
-                            } else {
+                            }*/ else {
                                 msg = [
                                     result.data.output,
                                 ].join('\n');
