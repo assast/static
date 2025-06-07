@@ -94,7 +94,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      1.0.0.71
+// @version      1.0.0.72
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -14351,6 +14351,12 @@ function auto_feed() {
             if (raw_info.descr.match(/mpls/i)){
                 // assast 原盘名规范成Blu-ray
                 raw_info.name = raw_info.name.replace( /(BluRay|Blu-Ray)/gi, 'Blu-ray');
+            }
+        }
+        if(forward_site == "MTeam"){
+            if (raw_info.descr.match(/mpls/i)){
+                // assast 原盘名规范成Blu-ray
+                raw_info.name = raw_info.name.replace( /(BluRay|Blu-Ray)/gi, 'BluRay');
             }
         }
         for (i = 0; i < allinput.length; i++) {
