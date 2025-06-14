@@ -1104,7 +1104,8 @@ async function sendTorrentFile(torrentFile, leechtorrent) {
 async function add2DB(torrentLink) {
     return new Promise((resolve, reject) => {
         const payload = {
-            TorrentUrl: torrentLink
+            TorrentUrl: torrentLink,
+            delay_iyuu: "30"
         };
 
         GM_xmlhttpRequest({
@@ -1760,12 +1761,12 @@ if (site_url.match(/upload.php/) || site_url.match(/upload#separator/)) {
         });
     }
     if(config.buttons.pjietu){
-        addButton('截ptpimg', () => {
+        addButton('截ptp', () => {
             return get_media('pjietu'); // 返回 Promise
         });
     }
     if(config.buttons.ijietu){
-        addButton('截imgbox', () => {
+        addButton('截img', () => {
             return get_media('ijietu'); // 返回 Promise
         });
     }
