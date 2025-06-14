@@ -1105,7 +1105,7 @@ async function add2DB(torrentLink) {
     return new Promise((resolve, reject) => {
         const payload = {
             TorrentUrl: torrentLink,
-            delay_iyuu: "30"
+            delay_iyuu: 30
         };
 
         GM_xmlhttpRequest({
