@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.14
+// @version      3.15
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -1105,7 +1105,7 @@ async function add2DB(torrentLink) {
     return new Promise((resolve, reject) => {
         const payload = {
             TorrentUrl: torrentLink,
-            delay_iyuu: 30
+            delay_iyuu: 10
         };
 
         GM_xmlhttpRequest({
