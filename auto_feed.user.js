@@ -94,7 +94,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      1.0.0.73
+// @version      1.0.0.74
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -1232,7 +1232,7 @@ var used_signin_sites = GM_getValue('used_signin_sites') === undefined ? default
 
 //欧美国家列表，可以酌情添加
 // assast 修复欧美问题
-const us_ue = ['阿尔巴尼亚|爱尔兰|爱沙尼亚|安道尔|奥地利|白俄罗斯|保加利亚|北马其顿|比利时|冰岛|波黑|波兰|丹麦|德国|法国|梵蒂冈|芬兰|荷兰|黑山|捷克|克罗地亚|拉脱维亚|立陶宛|列支敦士登|卢森堡|罗马尼亚|马耳他|摩尔多瓦|摩纳哥|挪威|葡萄牙|瑞典|瑞士|塞尔维亚|塞浦路斯|圣马力诺|斯洛伐克|斯洛文尼亚|乌克兰|西班牙|希腊|匈牙利|意大利|英国|安提瓜和巴布达|巴巴多斯|巴哈马|巴拿马|伯利兹|多米尼加|多米尼克|格林纳达|哥斯达黎加|古巴|海地|洪都拉斯|加拿大|美国|墨西哥|尼加拉瓜|萨尔瓦多|圣基茨和尼维斯|圣卢西亚|圣文森特和格林纳丁斯|特立尼达和多巴哥|危地马拉|牙买加|阿根廷|巴拉圭|巴西|秘鲁|玻利维亚|厄瓜多尔|哥伦比亚|圭亚那|苏里南|委内瑞拉|乌拉圭|智利|澳大利亚|新西兰|俄罗斯|法罗群岛|苏联'];
+const us_ue = ['西德|阿尔巴尼亚|爱尔兰|爱沙尼亚|安道尔|奥地利|白俄罗斯|保加利亚|北马其顿|比利时|冰岛|波黑|波兰|丹麦|德国|法国|梵蒂冈|芬兰|荷兰|黑山|捷克|克罗地亚|拉脱维亚|立陶宛|列支敦士登|卢森堡|罗马尼亚|马耳他|摩尔多瓦|摩纳哥|挪威|葡萄牙|瑞典|瑞士|塞尔维亚|塞浦路斯|圣马力诺|斯洛伐克|斯洛文尼亚|乌克兰|西班牙|希腊|匈牙利|意大利|英国|安提瓜和巴布达|巴巴多斯|巴哈马|巴拿马|伯利兹|多米尼加|多米尼克|格林纳达|哥斯达黎加|古巴|海地|洪都拉斯|加拿大|美国|墨西哥|尼加拉瓜|萨尔瓦多|圣基茨和尼维斯|圣卢西亚|圣文森特和格林纳丁斯|特立尼达和多巴哥|危地马拉|牙买加|阿根廷|巴拉圭|巴西|秘鲁|玻利维亚|厄瓜多尔|哥伦比亚|圭亚那|苏里南|委内瑞拉|乌拉圭|智利|澳大利亚|新西兰|俄罗斯|法罗群岛|苏联'];
 
 const us_ue_english = ['Albania|Andorra|Austria|Russia|Belgium|Bosnia and Herzegovina|Bulgaria|Croatia|Cyprus|Czechia|Denmark|Estonia|Faroe Islands (Denmark)|Iceland|Finland|France|Germany|Greece|Hungary|Ireland|Italy|Latvia|Liechtenstein|Lithuania|Luxembourg|North Macedonia|Malta|Moldova|Monaco|Netherlands|Norway|Poland|Portugal|Romania|Russia|San Marino|Serbia|Slovakia|Slovenia|Spain|Sweden|Switzerland|Ukraine|United Kingdom|Vatican City|United States|Canada|Australia|New Zealand|West Germany|Soviet Union'];
 
