@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.15
+// @version      3.16
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -1381,7 +1381,7 @@ async function deleteRelatedData(hash, md5, tracker, name) {
                 var result = JSON.parse(response.responseText);
                 if (response.status == 200) {
                     addMsg(result.message);
-                    listTorrent(); // 刷新列表
+                    // listTorrent(); // 刷新列表
                 } else {
                     addMsg(result.message, 'error');
                 }
@@ -1421,7 +1421,7 @@ async function forcePushRelatedData(hash, md5, tracker, name) {
                 var result = JSON.parse(response.responseText);
                 if (response.status == 200) {
                     addMsg(result.message);
-                    listTorrent(); // 刷新列表
+                    // listTorrent(); // 刷新列表
                 } else {
                     addMsg(result.message, 'error');
                 }
