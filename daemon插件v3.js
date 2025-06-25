@@ -217,10 +217,10 @@ style.textContent += `
     z-index: 99999;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 5px;
     cursor: move;
     background: rgba(255, 255, 255, 0.1);
-    padding: 10px;
+    padding: 5px;
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     transition: all 0.3s ease;
@@ -228,13 +228,13 @@ style.textContent += `
 
 /* 单个按钮样式 */
 .daemon-btn {
-    padding: 12px 20px;
+    padding: 10px 18px;
     background: linear-gradient(145deg, #e3f2fd, #bbdefb);
     color: #1976d2;
     border: none;
     border-radius: 6px;
     cursor: pointer;
-    font: bold 14px 'Microsoft YaHei';
+    font: bold 12px 'Microsoft YaHei';
     box-shadow: 0 2px 4px rgba(25,118,210,0.2);
     transition: all 0.2s ease;
     position: relative;
@@ -463,6 +463,7 @@ var rssapi = '';
 
 // 初始化配置
 var config = {};
+var currentGroup = {};
 initconfig();
 
 const container = createListContainer();
@@ -473,34 +474,41 @@ var site_url = decodeURI(window.location.href);
 
 function initconfig() {
     config = loadConfig();
-    debugger;
-    apiurl = `${config.apidomain}/add_torrent`;
-    deployapiurl = `${config.apidomain}/force_deploy`;
-    listapiurl = `${config.apidomain}/get_info`;
-    deleteapiurl = `${config.apidomain}/del_torrent`;
-    forceapiurl = `${config.apidomain}/force_deploy_torrents`;
-    mediaapiurl = `${config.apidomain}/get_media`;
-    iyuuapi = `${config.apidomain}/api/iyuu`;
-    rssapi = `${config.rssapidomain}/api/autobrr/rss_announce?apikey=${config.apikey}`;
+    currentGroup = config.groups[config.activeGroup];
+
+    apiurl = `${currentGroup.apidomain}/add_torrent`;
+    deployapiurl = `${currentGroup.apidomain}/force_deploy`;
+    listapiurl = `${currentGroup.apidomain}/get_info`;
+    deleteapiurl = `${currentGroup.apidomain}/del_torrent`;
+    forceapiurl = `${currentGroup.apidomain}/force_deploy_torrents`;
+    mediaapiurl = `${currentGroup.apidomain}/get_media`;
+    iyuuapi = `${currentGroup.apidomain}/api/iyuu`;
+    rssapi = `${currentGroup.rssapidomain}/api/autobrr/rss_announce?apikey=${currentGroup.apikey}`;
 }
+
 // 配置管理部分
 function loadConfig() {
     const defaultConfig = {
-        rssapidomain: 'https://xx.xx.xx:8443',
-        apidomain: 'https://xx.xx.xx:8443',
-        apikey: 'defaultKey',
-        buttons: {
-            panel: true,
-            leechtorrent: false,
-            leechtorrent1: false,
-            media: false,
-            pjietu: false,
-            ijietu: false,
-            iyuu: false,
-            add2DB: false
-        },
-        isnotdownload: false,
-        notautopush: []
+        activeGroup: 'default',
+        groups: {
+            default: {
+                rssapidomain: 'https://xx.xx.xx:8443',
+                apidomain: 'https://xx.xx.xx:8443',
+                apikey: 'defaultKey',
+                buttons: {
+                    panel: true,
+                    leechtorrent: false,
+                    leechtorrent1: false,
+                    media: false,
+                    pjietu: false,
+                    ijietu: false,
+                    iyuu: false,
+                    add2DB: false
+                },
+                isnotdownload: false,
+                notautopush: []
+            }
+        }
     };
 
     const saved = GM_getValue('daemon_config', '');
@@ -515,9 +523,16 @@ function loadConfig() {
     return defaultConfig;
 }
 
+
 function saveConfig(config) {
+    if (!config.groups || !config.groups[config.activeGroup]) {
+        addMsg('当前激活的配置组不存在，请检查 JSON 格式', 'error');
+        return;
+    }
+
     GM_setValue('daemon_config', JSON.stringify(config));
 }
+
 
 const used_site_info = {
     '1PTBA': {'url': 'https://1ptba.com/'},
@@ -870,7 +885,7 @@ if (window.self === window.top) {
 
 // 初始化函数
 function init() {
-    if (config.notautopush && config.notautopush.includes(now_site)) {
+    if (currentGroup.notautopush && currentGroup.notautopush.includes(now_site)) {
         console.log('当前站点不自动推送');
     } else {
         // 等待目标元素加载完成
@@ -937,7 +952,7 @@ function processDownload() {
 function getFile(url, leechtorrent) {
     return new Promise((resolve, reject) => {
         debugger;
-        if(config.isnotdownload){
+        if(currentGroup.isnotdownload){
             const requestUUID = generateUUID();
             const timestamp = Math.floor(Date.now() / 1000).toString();
             generateSignature(requestUUID, timestamp)
@@ -1022,7 +1037,7 @@ function generateUUID() {
 }
 
 async function generateSignature(uuid, timestamp) {
-    const signString = `${config.apikey}${uuid}${timestamp}`;
+    const signString = `${currentGroup.apikey}${uuid}${timestamp}`;
     return sha256(signString);
 }
 
@@ -1638,6 +1653,83 @@ function showMediaInfo(content) {
     // 添加容器到页面
     document.body.appendChild(container);
 }
+function showConfigSwitcher() {
+    const modal = document.createElement('div');
+    modal.style.position = 'fixed';
+    modal.style.top = '50%';
+    modal.style.left = '50%';
+    modal.style.transform = 'translate(-50%, -50%)';
+    modal.style.backgroundColor = '#fff';
+    modal.style.padding = '20px';
+    modal.style.borderRadius = '8px';
+    modal.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.1)';
+    modal.style.zIndex = '10000';
+    modal.style.width = '300px';
+
+    const title = document.createElement('h3');
+    title.textContent = '切换配置组';
+    title.style.marginTop = '0';
+    modal.appendChild(title);
+
+    const list = document.createElement('div');
+    list.style.maxHeight = '300px';
+    list.style.overflowY = 'auto';
+
+    const configGroups = Object.keys(config.groups);
+    configGroups.forEach(groupName => {
+        const btn = document.createElement('button');
+        btn.textContent = groupName;
+        btn.style.display = 'block';
+        btn.style.width = '100%';
+        btn.style.marginBottom = '8px';
+        btn.style.padding = '8px 12px';
+        btn.style.border = 'none';
+        btn.style.borderRadius = '4px';
+        btn.style.backgroundColor = config.activeGroup === groupName ? '#007bff' : '#f1f1f1';
+        btn.style.color = config.activeGroup === groupName ? '#fff' : '#333';
+        btn.style.cursor = 'pointer';
+        btn.style.fontWeight = config.activeGroup === groupName ? 'bold' : 'normal';
+        btn.style.transition = 'all 0.2s ease';
+
+        btn.addEventListener('click', () => {
+            config.activeGroup = groupName;
+            saveConfig(config);
+            initconfig();
+            updateSwitchButtonLabel(groupName);
+            addMsg(`已切换到配置组：${groupName}`);
+            document.body.removeChild(modal);
+        });
+
+        list.appendChild(btn);
+    });
+
+    modal.appendChild(list);
+
+    // 关闭按钮
+    const closeButton = document.createElement('button');
+    closeButton.textContent = '关闭';
+    closeButton.style.marginTop = '10px';
+    closeButton.style.padding = '8px 16px';
+    closeButton.style.backgroundColor = '#dc3545';
+    closeButton.style.color = '#fff';
+    closeButton.style.border = 'none';
+    closeButton.style.borderRadius = '4px';
+    closeButton.style.cursor = 'pointer';
+
+    closeButton.addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+
+    modal.appendChild(closeButton);
+
+    document.body.appendChild(modal);
+}
+function updateSwitchButtonLabel(groupName) {
+    const switchBtn = [...btnContainer.children].find(el => el.textContent.startsWith('切换配置'));
+    if (switchBtn) {
+        switchBtn.textContent = `${groupName}`;
+    }
+}
 
 async function get_media(command) {
     return new Promise((resolve, reject) => {
@@ -1755,17 +1847,17 @@ if (site_url.match(/upload.php/) || site_url.match(/upload#separator/)) {
         publishButton.click();
     });
 
-    if(config.buttons.media){
+    if(currentGroup.buttons.media){
         addButton('media', () => {
             return get_media('media'); // 返回 Promise
         });
     }
-    if(config.buttons.pjietu){
+    if(currentGroup.buttons.pjietu){
         addButton('截ptp', () => {
             return get_media('pjietu'); // 返回 Promise
         });
     }
-    if(config.buttons.ijietu){
+    if(currentGroup.buttons.ijietu){
         addButton('截img', () => {
             return get_media('ijietu'); // 返回 Promise
         });
@@ -1816,13 +1908,13 @@ if (site_url.match(/torrent/) || site_url.match(/detail\//) || site_url.match(/d
             input.click();
         });
     });
-    if(config.buttons.leechtorrent){
+    if(currentGroup.buttons.leechtorrent){
         addButton('进|推送', () => {
             if (!confirm(`确定进货？`)) return new Promise((resolve) => { });
             return getFile(getUrl(), true);
         });
     }
-    if(config.buttons.leechtorrent1){
+    if(currentGroup.buttons.leechtorrent1){
         addButton('进|本地', () => {
             return new Promise((resolve, reject) => {
                 const input = document.createElement('input');
@@ -1873,21 +1965,26 @@ if (site_url.match(/edit.php/)) {
         addMsg('未找到编辑按钮！');
     });
 }
-if(config.buttons.iyuu){
+if(currentGroup.buttons.iyuu){
     addButton('IYUU', async() => {
         await getBlob(getUrl(), iyuuapi, iyuuQuery)
     });
 }
-if(config.buttons.add2DB){
+if(currentGroup.buttons.add2DB){
     addButton('入库', async() => {
         await add2DB(getUrl())
     });
 }
-if(config.buttons.panel){
+if(currentGroup.buttons.panel){
     addButton('面板', () => {
         return listTorrent(); // 返回 Promise
     });
 }
 addButton('设置', handleSettings);
+
+addButton(`组|${config.activeGroup}`, () => {
+    showConfigSwitcher();
+});
+
 
 
