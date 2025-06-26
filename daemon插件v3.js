@@ -1833,21 +1833,6 @@ if(currentGroup.buttons.panel){
         return listTorrent(); // 返回 Promise
     });
 }
-if(currentGroup.buttons.media){
-    addButton('media', () => {
-        return get_media('media'); // 返回 Promise
-    });
-}
-if(currentGroup.buttons.pjietu){
-    addButton('截ptp', () => {
-        return get_media('pjietu'); // 返回 Promise
-    });
-}
-if(currentGroup.buttons.ijietu){
-    addButton('截img', () => {
-        return get_media('ijietu'); // 返回 Promise
-    });
-}
 if (site_url.match(/upload.php/) || site_url.match(/upload#separator/)) {
     addButton('发布', () => {
         var publishButton = document.querySelector('input[value="发布"]');
@@ -1963,6 +1948,21 @@ if (site_url.match(/edit.php/)) {
             return;
         }
         addMsg('未找到编辑按钮！');
+    });
+}
+if(currentGroup.buttons.media){
+    addButton('media', () => {
+        return get_media('media'); // 返回 Promise
+    });
+}
+if(currentGroup.buttons.pjietu){
+    addButton('截ptp', () => {
+        return get_media('pjietu'); // 返回 Promise
+    });
+}
+if(currentGroup.buttons.ijietu){
+    addButton('截img', () => {
+        return get_media('ijietu'); // 返回 Promise
     });
 }
 if(currentGroup.buttons.iyuu){
