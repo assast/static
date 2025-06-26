@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.16
+// @version      3.17
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -1277,6 +1277,53 @@ function displayTable(tableHTML) {
                 ${tableHTML}
             </div>
         `;
+        // 绑定关闭按钮事件
+        const closeBtn = container.querySelector('.close-btn');
+        closeBtn.addEventListener('click', () => {
+            container.classList.remove('visible');
+        });
+
+        // 绑定刷新按钮事件
+        const refreshBtn = container.querySelector('.refresh-btn');
+        refreshBtn.addEventListener('click', () => {
+            // 禁用按钮
+            refreshBtn.disabled = true;
+            refreshBtn.classList.add('loading');
+
+            listTorrent()
+                .then(() => {
+                    btn.disabled = false;
+                    btn.classList.remove('loading');
+                })
+                .catch((error) => {
+                    console.error('操作失败:', error);
+                    btn.disabled = false;
+                    btn.classList.remove('loading');
+                });
+        });
+
+        // 绑定嵌套表格中的删除和强推按钮事件
+        container.addEventListener('click', (e) => {
+            const deleteBtn = e.target.closest('.delete-btn');
+            const forcePushBtn = e.target.closest('.force-push-btn');
+            const row = e.target.closest('tr');
+
+            if (deleteBtn || forcePushBtn) {
+                debugger;
+                const hash = row.dataset.hash;
+                const md5 = row.dataset.md5;
+                const tracker = row.dataset.tracker
+                const name = row.dataset.name
+
+                if (deleteBtn) {
+                    deleteRelatedData(hash, md5, tracker, name);
+                }
+
+                if (forcePushBtn) {
+                    forcePushRelatedData(hash, md5, tracker, name);
+                }
+            }
+        });
     } else {
         container.innerHTML = `
             <div class="list-header">
@@ -1290,54 +1337,6 @@ function displayTable(tableHTML) {
         `;
         container.classList.add('visible');
     }
-
-    // 绑定关闭按钮事件
-    const closeBtn = container.querySelector('.close-btn');
-    closeBtn.addEventListener('click', () => {
-        container.classList.remove('visible');
-    });
-
-    // 绑定刷新按钮事件
-    const refreshBtn = container.querySelector('.refresh-btn');
-    refreshBtn.addEventListener('click', () => {
-        // 禁用按钮
-        refreshBtn.disabled = true;
-        refreshBtn.classList.add('loading');
-
-        listTorrent()
-            .then(() => {
-                btn.disabled = false;
-                btn.classList.remove('loading');
-            })
-            .catch((error) => {
-                console.error('操作失败:', error);
-                btn.disabled = false;
-                btn.classList.remove('loading');
-            });
-    });
-
-    // 绑定嵌套表格中的删除和强推按钮事件
-    container.addEventListener('click', (e) => {
-        const deleteBtn = e.target.closest('.delete-btn');
-        const forcePushBtn = e.target.closest('.force-push-btn');
-        const row = e.target.closest('tr');
-
-        if (deleteBtn || forcePushBtn) {
-            debugger;
-            const hash = row.dataset.hash;
-            const md5 = row.dataset.md5;
-            const tracker = row.dataset.tracker
-            const name = row.dataset.name
-
-            if (deleteBtn) {
-                deleteRelatedData(hash, md5, tracker, name);
-            }
-
-            if (forcePushBtn) {
-                forcePushRelatedData(hash, md5, tracker, name);
-            }
-        }
-    });
 }
 
 function addMsg(msg, type) {
