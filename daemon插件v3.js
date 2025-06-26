@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.18
+// @version      3.19
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -1729,16 +1729,17 @@ async function get_media(command) {
 
         generateSignature(requestUUID, timestamp)
             .then((signature) => {
-                debugger;
-                const element = document.getElementById('tBlob');
-                if (!element) {
-                    throw new Error('种子文件未加载，请稍等');
-                }
+                // debugger;
+                // const element = document.getElementById('tBlob');
+                // if (!element) {
+                //     throw new Error('种子文件未加载，请稍等');
+                // }
                 const torrentBase64 =  element.value;
 
                 const payload = {
                     torrent_bytesio: torrentBase64,
-                    command: command
+                    command: command,
+                    torrent_link: getUrl()
                 };
 
                 GM_xmlhttpRequest({
@@ -1823,6 +1824,30 @@ if (site_url.match(/details.php\?id=\d+&uploaded=1/) || site_url.match(/torrents
         init();
     }
 }
+addButton(`组|${config.activeGroup}`, () => {
+    showConfigSwitcher();
+});
+addButton('设置', handleSettings);
+if(currentGroup.buttons.panel){
+    addButton('面板', () => {
+        return listTorrent(); // 返回 Promise
+    });
+}
+if(currentGroup.buttons.media){
+    addButton('media', () => {
+        return get_media('media'); // 返回 Promise
+    });
+}
+if(currentGroup.buttons.pjietu){
+    addButton('截ptp', () => {
+        return get_media('pjietu'); // 返回 Promise
+    });
+}
+if(currentGroup.buttons.ijietu){
+    addButton('截img', () => {
+        return get_media('ijietu'); // 返回 Promise
+    });
+}
 if (site_url.match(/upload.php/) || site_url.match(/upload#separator/)) {
     addButton('发布', () => {
         var publishButton = document.querySelector('input[value="发布"]');
@@ -1837,22 +1862,6 @@ if (site_url.match(/upload.php/) || site_url.match(/upload#separator/)) {
         }
         publishButton.click();
     });
-
-    if(currentGroup.buttons.media){
-        addButton('media', () => {
-            return get_media('media'); // 返回 Promise
-        });
-    }
-    if(currentGroup.buttons.pjietu){
-        addButton('截ptp', () => {
-            return get_media('pjietu'); // 返回 Promise
-        });
-    }
-    if(currentGroup.buttons.ijietu){
-        addButton('截img', () => {
-            return get_media('ijietu'); // 返回 Promise
-        });
-    }
 }
 // 添加按钮
 if (site_url.match(/torrent/) || site_url.match(/detail\//) || site_url.match(/details.php/) || site_url.match(/totheglory.im\/t\//)) {
@@ -1966,16 +1975,6 @@ if(currentGroup.buttons.add2DB){
         await add2DB(getUrl())
     });
 }
-if(currentGroup.buttons.panel){
-    addButton('面板', () => {
-        return listTorrent(); // 返回 Promise
-    });
-}
-addButton('设置', handleSettings);
-
-addButton(`组|${config.activeGroup}`, () => {
-    showConfigSwitcher();
-});
 
 
 
