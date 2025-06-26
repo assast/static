@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.17
+// @version      3.18
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -1263,80 +1263,72 @@ function generateTableHTML(torrents) {
 }
 
 function displayTable(tableHTML) {
-    const container = document.getElementById('daemon-list');
+    var container = document.getElementById('daemon-list');
     if (!container) {
-        const newContainer = createListContainer();
-        document.body.appendChild(newContainer);
-        newContainer.innerHTML = `
-            <div class="list-header">
-                <strong style="font-size:1.2em">种子监控面板</strong>
-                <button class="refresh-btn" title="刷新">🔄</button>
-                <button class="close-btn" title="关闭">×</button>
-            </div>
-            <div class="list-content">
-                ${tableHTML}
-            </div>
-        `;
-        // 绑定关闭按钮事件
-        const closeBtn = container.querySelector('.close-btn');
-        closeBtn.addEventListener('click', () => {
-            container.classList.remove('visible');
-        });
-
-        // 绑定刷新按钮事件
-        const refreshBtn = container.querySelector('.refresh-btn');
-        refreshBtn.addEventListener('click', () => {
-            // 禁用按钮
-            refreshBtn.disabled = true;
-            refreshBtn.classList.add('loading');
-
-            listTorrent()
-                .then(() => {
-                    btn.disabled = false;
-                    btn.classList.remove('loading');
-                })
-                .catch((error) => {
-                    console.error('操作失败:', error);
-                    btn.disabled = false;
-                    btn.classList.remove('loading');
-                });
-        });
-
-        // 绑定嵌套表格中的删除和强推按钮事件
-        container.addEventListener('click', (e) => {
-            const deleteBtn = e.target.closest('.delete-btn');
-            const forcePushBtn = e.target.closest('.force-push-btn');
-            const row = e.target.closest('tr');
-
-            if (deleteBtn || forcePushBtn) {
-                debugger;
-                const hash = row.dataset.hash;
-                const md5 = row.dataset.md5;
-                const tracker = row.dataset.tracker
-                const name = row.dataset.name
-
-                if (deleteBtn) {
-                    deleteRelatedData(hash, md5, tracker, name);
-                }
-
-                if (forcePushBtn) {
-                    forcePushRelatedData(hash, md5, tracker, name);
-                }
-            }
-        });
-    } else {
-        container.innerHTML = `
-            <div class="list-header">
-                <strong style="font-size:1.2em">种子监控面板</strong>
-                <button class="refresh-btn" title="刷新">🔄</button>
-                <button class="close-btn" title="关闭">×</button>
-            </div>
-            <div class="list-content">
-                ${tableHTML}
-            </div>
-        `;
-        container.classList.add('visible');
+        document.body.removeChild(container)
     }
+    container = createListContainer();
+    document.body.appendChild(container);
+
+    container.innerHTML = `
+        <div class="list-header">
+            <strong style="font-size:1.2em">种子监控面板</strong>
+            <button class="refresh-btn" title="刷新">🔄</button>
+            <button class="close-btn" title="关闭">×</button>
+        </div>
+        <div class="list-content">
+            ${tableHTML}
+        </div>
+    `;
+    container.classList.add('visible');
+
+    // 绑定关闭按钮事件
+    const closeBtn = container.querySelector('.close-btn');
+    closeBtn.addEventListener('click', () => {
+        container.classList.remove('visible');
+    });
+
+    // 绑定刷新按钮事件
+    const refreshBtn = container.querySelector('.refresh-btn');
+    refreshBtn.addEventListener('click', () => {
+        // 禁用按钮
+        refreshBtn.disabled = true;
+        refreshBtn.classList.add('loading');
+
+        listTorrent()
+            .then(() => {
+                btn.disabled = false;
+                btn.classList.remove('loading');
+            })
+            .catch((error) => {
+                console.error('操作失败:', error);
+                btn.disabled = false;
+                btn.classList.remove('loading');
+            });
+    });
+
+    // 绑定嵌套表格中的删除和强推按钮事件
+    container.addEventListener('click', (e) => {
+        const deleteBtn = e.target.closest('.delete-btn');
+        const forcePushBtn = e.target.closest('.force-push-btn');
+        const row = e.target.closest('tr');
+
+        if (deleteBtn || forcePushBtn) {
+            debugger;
+            const hash = row.dataset.hash;
+            const md5 = row.dataset.md5;
+            const tracker = row.dataset.tracker
+            const name = row.dataset.name
+
+            if (deleteBtn) {
+                deleteRelatedData(hash, md5, tracker, name);
+            }
+
+            if (forcePushBtn) {
+                forcePushRelatedData(hash, md5, tracker, name);
+            }
+        }
+    });
 }
 
 function addMsg(msg, type) {
