@@ -1729,12 +1729,12 @@ async function get_media(command) {
 
         generateSignature(requestUUID, timestamp)
             .then((signature) => {
-                // debugger;
-                // const element = document.getElementById('tBlob');
-                // if (!element) {
-                //     throw new Error('种子文件未加载，请稍等');
-                // }
-                const torrentBase64 =  element.value;
+                debugger;
+                var torrentBase64 ;
+                const element = document.getElementById('tBlob');
+                if (element) {
+                    torrentBase64 =  element.value;
+                }
 
                 const payload = {
                     torrent_bytesio: torrentBase64,
