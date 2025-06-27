@@ -1764,7 +1764,7 @@ async function get_media(command) {
                                     '[/Mediainfo]'
                                 ].join('\n');
                                 showMediaInfo(msg); // 使用 showMediaInfo 展示结果
-                            } else if (now_site == 'OurBits') {
+                            } else if (now_site == 'OurBits' || now_site == 'CHDBits') {
                                 msg = [
                                     '[quote]',
                                     result.data.output,
