@@ -1362,12 +1362,14 @@ function addMsg(msg, type) {
     }
 
     // 设置 textarea 的内容为传入的 msg 参数，并确保换行符生效
+    msg = config.activeGroup + "\n" +msg;
+
     msgBox.value = msg.replace(/\\n/g, '\n');
 
     // 动态调整 textarea 的高度
     // msgBox.style.height = 'auto'; // 先设置为 auto，以便根据内容计算高度
     // msgBox.style.height = Math.min(msgBox.scrollHeight, 100) + 'px'; // 限制最大高度为 200px
-    msgBox.style.height = '100px'; // 先设置为 auto，以便根据内容计算高度
+    msgBox.style.height = '120px'; // 先设置为 auto，以便根据内容计算高度
 
     if (type && type == 'error') {
         msgBox.className = 'daemon-msg daemon-msg-fail';
