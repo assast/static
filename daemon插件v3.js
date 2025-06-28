@@ -1263,13 +1263,23 @@ function generateTableHTML(torrents) {
 }
 
 function displayTable(tableHTML) {
-    var container = document.getElementById('daemon-list');
-    if (!container) {
-        document.body.removeChild(container)
+    // 关闭已有的容器
+    const existingContainer = document.getElementById('daemon-list');
+    if (existingContainer) {
+        existingContainer.classList.remove('visible');
+        existingContainer.innerHTML = ''; // 清空内容
     }
-    container = createListContainer();
-    document.body.appendChild(container);
 
+    // 创建或获取新的容器
+    let container;
+    if (!existingContainer) {
+        container = createListContainer();
+        document.body.appendChild(container);
+    } else {
+        container = existingContainer;
+    }
+
+    // 设置新内容
     container.innerHTML = `
         <div class="list-header">
             <strong style="font-size:1.2em">种子监控面板</strong>
@@ -1284,51 +1294,60 @@ function displayTable(tableHTML) {
 
     // 绑定关闭按钮事件
     const closeBtn = container.querySelector('.close-btn');
-    closeBtn.addEventListener('click', () => {
-        container.classList.remove('visible');
-    });
+    if (closeBtn && !closeBtn.dataset.listenerAdded) {
+        closeBtn.addEventListener('click', () => {
+            container.classList.remove('visible');
+        });
+        closeBtn.dataset.listenerAdded = true;
+    }
 
     // 绑定刷新按钮事件
     const refreshBtn = container.querySelector('.refresh-btn');
-    refreshBtn.addEventListener('click', () => {
-        // 禁用按钮
-        refreshBtn.disabled = true;
-        refreshBtn.classList.add('loading');
+    if (refreshBtn && !refreshBtn.dataset.listenerAdded) {
+        refreshBtn.addEventListener('click', () => {
+            // 禁用按钮
+            refreshBtn.disabled = true;
+            refreshBtn.classList.add('loading');
 
-        listTorrent()
-            .then(() => {
-                btn.disabled = false;
-                btn.classList.remove('loading');
-            })
-            .catch((error) => {
-                console.error('操作失败:', error);
-                btn.disabled = false;
-                btn.classList.remove('loading');
-            });
-    });
+            listTorrent()
+                .then(() => {
+                    refreshBtn.disabled = false;
+                    refreshBtn.classList.remove('loading');
+                })
+                .catch((error) => {
+                    console.error('操作失败:', error);
+                    refreshBtn.disabled = false;
+                    refreshBtn.classList.remove('loading');
+                });
+        });
+        refreshBtn.dataset.listenerAdded = true;
+    }
 
-    // 绑定嵌套表格中的删除和强推按钮事件
-    container.addEventListener('click', (e) => {
-        const deleteBtn = e.target.closest('.delete-btn');
-        const forcePushBtn = e.target.closest('.force-push-btn');
-        const row = e.target.closest('tr');
+    // 为表格行绑定数据（使用事件委托）
+    const tableBody = container.querySelector('.daemon-table tbody');
+    if (tableBody && !tableBody.dataset.listenerAdded) {
+        tableBody.addEventListener('click', (e) => {
+            const deleteBtn = e.target.closest('.delete-btn');
+            const forcePushBtn = e.target.closest('.force-push-btn');
+            const row = e.target.closest('tr');
 
-        if (deleteBtn || forcePushBtn) {
-            debugger;
-            const hash = row.dataset.hash;
-            const md5 = row.dataset.md5;
-            const tracker = row.dataset.tracker
-            const name = row.dataset.name
+            if (row && (deleteBtn || forcePushBtn)) {
+                const hash = row.dataset.hash;
+                const md5 = row.dataset.md5;
+                const tracker = row.dataset.tracker;
+                const name = row.dataset.name;
 
-            if (deleteBtn) {
-                deleteRelatedData(hash, md5, tracker, name);
+                if (deleteBtn) {
+                    deleteRelatedData(hash, md5, tracker, name);
+                }
+
+                if (forcePushBtn) {
+                    forcePushRelatedData(hash, md5, tracker, name);
+                }
             }
-
-            if (forcePushBtn) {
-                forcePushRelatedData(hash, md5, tracker, name);
-            }
-        }
-    });
+        });
+        tableBody.dataset.listenerAdded = true;
+    }
 }
 
 function addMsg(msg, type) {
