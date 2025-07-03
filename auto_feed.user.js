@@ -2086,7 +2086,7 @@ function walk_ptp(n) {
 }
 
 function deal_img_350(pic_info) {
-    
+
     var imgs = pic_info.match(/\[img\].*?(jpg|png).*?\[\/img\]/ig);
     if (imgs) {
         imgs.map((item)=>{
@@ -2548,15 +2548,16 @@ String.prototype.get_label = function(){
     }
 
     // assast 国语标签判断逻辑修复
-    
+
     // if (my_string.match(/([^多]国.{0,3}语|国.{0,3}配|台.{0,3}语|台.{0,3}配)|(Audio.*?[\s\S]*?Chinese|Audio.*?[\s\S]*?mandarin)/i)){
     //     var sub_str = my_string.match(/([^多]国.{0,3}语|国.{0,3}配|台.{0,3}语|台.{0,3}配)|(Audio.*?[\s\S]*?Chinese|Audio.*?[\s\S]*?mandarin)/i)[0];
     //     if (!sub_str.match(/美国手语|国家|Subtitles|Subtitle|Text.*?#/i)) {
     //         labels.gy = true;
     //     }
     // }
+    debugger;
     if (my_string.match(/(Audio.*?[\s\S]*?Chinese|Audio.*?[\s\S]*?mandarin)/i)){
-        var sub_str = my_string.match(/(Audio.*?[\s\S]*?Chinese|Audio.*?[\s\S]*?mandarin)/i)[0];
+        var sub_str = my_string.match(/(Audio.*?[\s\S]*?mandarin|Audio.*?[\s\S]*?Chinese)/i)[0];
         if (!sub_str.match(/Subtitles|Subtitle|Text.*?#/i)) {
             labels.gy = true;
         }
@@ -4162,11 +4163,11 @@ function addTorrent(url, name, forward_site, forward_announce) {
     if (url.match(/d8:announce/)) {
         build_blob_from_torrent(url, forward_announce, forward_site, "application/x-bittorrent", function(data){
             const blob = data.data;
-            
+
             const reader = new FileReader();
             reader.onload = function (event) {
                 const torrentBase64 = btoa(event.target.result);
-                addTorrentInput('tBlob', torrentBase64);  
+                addTorrentInput('tBlob', torrentBase64);
             };
             reader.readAsBinaryString(blob);
 
@@ -4185,7 +4186,7 @@ function addTorrent(url, name, forward_site, forward_announce) {
             const reader = new FileReader();
             reader.onload = function (event) {
                 const torrentBase64 = btoa(event.target.result);
-                addTorrentInput('tBlob', torrentBase64);  
+                addTorrentInput('tBlob', torrentBase64);
             };
             reader.readAsBinaryString(blob);
 
@@ -12022,7 +12023,7 @@ function auto_feed() {
             });
         }
         // assast 中字、国语、粤语标签 从源界面获取
-        
+
         switch (origin_site) {
             case 'PTer':
                 try {
@@ -14288,7 +14289,7 @@ function auto_feed() {
             }
         }
         if (forward_site == 'Audiences') { //assast ptpimg 转Audiences 去掉url标签 2025年01月26日13:30:58
-            
+
             var img_urls = raw_info.descr.match(/\[url=https?:\/\/ptpimg\.me.*?\]\[img\].*?\[\/img\]\[\/url\]/ig);
             try{
                 for (i=0; i<img_urls.length; i++){
@@ -14338,9 +14339,10 @@ function auto_feed() {
         if (raw_info.origin_site == 'BHD' && raw_info.name.match(/-FraMeSToR/)) {
             raw_info.name = raw_info.name.replace(/(BluRay)(.*?)(AVC|VC-1|HEVC)(.*?)(REMUX)/i, '$1 $5 $3 $2').replace(/ +/g, ' ').replace(' -', '-');
         }
-        
+
         // assast 青蛙hdr10需要改为hdr 不能有10bit
         if(forward_site == "QingWa"){
+            raw_info.name = raw_info.name.replace(/DD\+/g, 'DDP');
             raw_info.name = raw_info.name.replace(/HDR10(?!\+)/g, 'HDR');
             raw_info.name = raw_info.name.replace(/ 10bit/gi, "").replace(/ Complete/gi, "");
 
@@ -14660,7 +14662,7 @@ function auto_feed() {
                     $('textarea[name="descr"]').val(raw_info.descr.trim().replace(/\n\n+/g, '\n\n').replace(/\]\n\n\[/g, '\]\n\['));
                 } else {
                     try{
-                        
+
                         var extra_info = raw_info.descr.match(/^\[quote\]\[b\]\[color=blue\].*?官组作品，感谢原制作者发布。\[\/color\]\[\/b\]\[\/quote\]/)[0];
                         $('textarea[name="descr"]').val(extra_info);
                     } catch (err) {
@@ -14835,7 +14837,7 @@ function auto_feed() {
                     if (labels.ry){ check_label(document.getElementsByName('tags[]'), 'ja'); }
                     if (labels.hy){ check_label(document.getElementsByName('tags[]'), 'ko'); }
                     // assast 杜比HDR Vivid标签
-                    
+
                     if (raw_info.descr.match(/HDR Vivid/)) {
                         check_label(document.getElementsByName('tags[]'), 'hdrv');
                     }
@@ -14863,7 +14865,12 @@ function auto_feed() {
                     if (labels.complete) { check_label(document.getElementsByName('tags[4][]'), '17'); }
                     break;
                 case 'UBits':
-                    if (labels.gy){ check_label(document.getElementsByName('tags[4][]'), '5'); }
+                    debugger;
+                    if (labels.gy){
+                        if(raw_info.source_sel != '大陆'){
+                            check_label(document.getElementsByName('tags[4][]'), '5');
+                        }
+                    }
                     if (labels.yy){ check_label(document.getElementsByName('tags[4][]'), '11'); }
                     if (labels.zz){ check_label(document.getElementsByName('tags[4][]'), '6'); }
                     if (labels.diy){
@@ -14906,7 +14913,7 @@ function auto_feed() {
                     if (labels.gy){ check_label(document.getElementsByName('tag_gy'), '1'); }
                     if (labels.yy){ check_label(document.getElementsByName('tag_yy'), '1'); }
                     if (labels.zz){ check_label(document.getElementsByName('tag_zz'), '1'); }
-                    
+
                     // assast lemonhd标签错误 柠檬爱原盘 20241215
                     if (labels.diy){
                         check_label(document.getElementsByName('tag_diy'), '1');
@@ -15079,9 +15086,9 @@ function auto_feed() {
                     if (labels.yy){ $('input[name="tags[4][]"][value="15"]').attr('checked', true); }
                     if (labels.zz){ $('input[name="tags[4][]"][value="6"]').attr('checked', true); }
                     if (labels.diy){ $('input[name="tags[4][]"][value="4"]').attr('checked', true); }
-                    if (labels.hdr10 || labels.hdr10plus || raw_info.descr.match(/HDR Vivid/) || ($('textarea[name="technical_info"]').val() && $('textarea[name="technical_info"]').val().match(/HDR Vivid/))) { 
-                        try { 
-                            $('input[name="tags[4][]"][value="7"]').attr('checked', true); 
+                    if (labels.hdr10 || labels.hdr10plus || raw_info.descr.match(/HDR Vivid/) || ($('textarea[name="technical_info"]').val() && $('textarea[name="technical_info"]').val().match(/HDR Vivid/))) {
+                        try {
+                            $('input[name="tags[4][]"][value="7"]').attr('checked', true);
                         } catch(err) {}
                     }
                     if (labels.complete) { $('input[name="tags[4][]"][value="12"]').attr('checked', true); }
@@ -15698,7 +15705,7 @@ function auto_feed() {
                     var region = reg_region[2].trim();
                     $('span:contains("請選擇國家/地區")').parent().parent().parent().parent().after(`当前资源的来源国家/地区为：${region}`);
                 }
-                
+
                 // assast 馒头自动填充bdinfo
                 // if ((raw_info.descr.match(/General[\s\S]*?Video[.\n]{0,5}ID/) || raw_info.full_mediainfo) && !raw_info.descr.match(/mpls/i)) {
                     try{
@@ -20161,9 +20168,9 @@ function auto_feed() {
             if (raw_info.name.match(/MiniBD/i)) {
                 medium_box.val(4);
             }
-            
+
             var audiocodec_box = $('select[name="audiocodec_sel[5]"]');
-        
+
             audiocodec_box = $('select[name="audiocodec_sel[4]"]');
             switch (raw_info.audiocodec_sel){
                 case 'DTS-HD': case 'DTS-HDMA:X 7.1': case 'DTS-HDMA': audiocodec_box.val(3); break;
