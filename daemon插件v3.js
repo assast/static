@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.21
+// @version      3.22
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -482,7 +482,7 @@ function initconfig() {
     deleteapiurl = `${currentGroup.apidomain}/del_torrent`;
     forceapiurl = `${currentGroup.apidomain}/force_deploy_torrents`;
     mediaapiurl = `${currentGroup.apidomain}/get_media`;
-    iyuuapi = `${currentGroup.rssapidomain}/api/iyuu`;
+    iyuuapi = `${currentGroup.rssapidomain}/api/iyuu?apikey=${currentGroup.apikey}`;
     rssapi = `${currentGroup.rssapidomain}/api/autobrr/rss_announce?apikey=${currentGroup.apikey}`;
 }
 
