@@ -482,7 +482,7 @@ function initconfig() {
     deleteapiurl = `${currentGroup.apidomain}/del_torrent`;
     forceapiurl = `${currentGroup.apidomain}/force_deploy_torrents`;
     mediaapiurl = `${currentGroup.apidomain}/get_media`;
-    iyuuapi = `${currentGroup.apidomain}/api/iyuu`;
+    iyuuapi = `${currentGroup.rssapidomain}/api/iyuu`;
     rssapi = `${currentGroup.rssapidomain}/api/autobrr/rss_announce?apikey=${currentGroup.apikey}`;
 }
 
