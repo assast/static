@@ -27337,14 +27337,14 @@ function addTorrentInput(id, ivalue) {
     input.type = 'text';
     input.value = ivalue;
     input.readOnly = true;
-    input.style.display = 'none';
+    input.style.display = '';
 
     input.id = id; // 添加id
     input.style.position = 'fixed';
     input.style.top = (20 + idx * 30) + 'px';
     input.style.left = '20px';
     input.style.zIndex = '9999';
-    input.style.width = '500px';
+    input.style.width = '50px';
     input.style.padding = '5px';
     input.style.border = '1px solid #ccc';
     input.style.borderRadius = '4px';
