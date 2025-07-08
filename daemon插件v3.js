@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.22
+// @version      3.23
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -1081,7 +1081,8 @@ async function sendTorrentFile(torrentFile, leechtorrent) {
                                 const msg = [
                                     '种子文件推送成功',
                                     '种 子 名: ' + result.torrent_name,
-                                    'tracker: ' + result.tracker
+                                    'tracker: ' + result.tracker,
+                                    '是否可用: ' + (result.isavailable ? '可用' : '不可用')
                                 ].join('\n');
                                 addMsg(msg);
                                 resolve();
