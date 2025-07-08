@@ -94,7 +94,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      1.0.0.74
+// @version      1.0.0.75
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -20202,7 +20202,7 @@ function auto_feed() {
             $('select[name="team_sel[5]"]').val(5);
             check_team(raw_info, 'team_sel[5]');
             $('select[name="team_sel[4]"]').val(5);
-            check_team(raw_info, 'team_sel[4]');
+            // check_team(raw_info, 'team_sel[4]');
         }
 
         else if (forward_site == '海棠') {
