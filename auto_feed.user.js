@@ -94,7 +94,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      1.0.0.75
+// @version      1.0.0.76
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -2555,7 +2555,6 @@ String.prototype.get_label = function(){
     //         labels.gy = true;
     //     }
     // }
-    debugger;
     if (my_string.match(/(Audio.*?[\s\S]*?Chinese|Audio.*?[\s\S]*?mandarin)/i)){
         var sub_str = my_string.match(/(Audio.*?[\s\S]*?mandarin|Audio.*?[\s\S]*?Chinese)/i)[0];
         if (!sub_str.match(/Subtitles|Subtitle|Text.*?#/i)) {
@@ -4237,6 +4236,7 @@ function reBuildHref(raw_info, forward_r) {
 }
 
 function check_team(raw_info, s_name, forward_site) {
+    debugger;
     if (raw_info.name.match(/MTeam/) && forward_site == 'HDHome') {
         $(`select[name="team_sel"]>option:eq(11)`).attr('selected', true);
         return;
@@ -4244,7 +4244,7 @@ function check_team(raw_info, s_name, forward_site) {
     $(`select[name="${s_name}"]>option`).map(function(index,e){
         var name = raw_info.name.split(/(19}20)\d{2}/).pop();
         if (name.toLowerCase().match(e.innerText.toLowerCase())) {
-            if ((name.match(/PSY|LCHD/) && e.innerText == 'CHD') || (name.match(/PandaMoon/) && e.innerText == 'Panda') || e.innerText == 'DIY' || e.innerText == 'REMUX') {
+            if ((name.match(/PSY|LCHD/) && e.innerText == 'CHD') || (name.match(/PandaMoon/) && e.innerText == 'Panda') || e.innerText == 'DIY' || e.innerText == 'REMUX' || e.innerText == 'RL') {
                 console.log('小组名貌似会产生误判');
                 return;
             } else if (name.match(/HDSpace/i) && e.innerText.match(/HDS/i)) {
@@ -14865,7 +14865,6 @@ function auto_feed() {
                     if (labels.complete) { check_label(document.getElementsByName('tags[4][]'), '17'); }
                     break;
                 case 'UBits':
-                    debugger;
                     if (labels.gy){
                         if(raw_info.source_sel != '大陆'){
                             check_label(document.getElementsByName('tags[4][]'), '5');
@@ -20202,7 +20201,7 @@ function auto_feed() {
             $('select[name="team_sel[5]"]').val(5);
             check_team(raw_info, 'team_sel[5]');
             $('select[name="team_sel[4]"]').val(5);
-            // check_team(raw_info, 'team_sel[4]');
+            check_team(raw_info, 'team_sel[4]');
         }
 
         else if (forward_site == '海棠') {

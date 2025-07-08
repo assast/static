@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.24
+// @version      3.25
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -866,7 +866,6 @@ function createDragHandle() {
 // ==================== 拖拽 结束 ====================
 
 // ==================== 只添加到最外层 start ====================
-debugger;
 // 获取最外层文档的body
 if (window.self === window.top) {
     const rootBody = document.body;
@@ -951,7 +950,6 @@ function processDownload() {
 
 function getFile(url, leechtorrent) {
     return new Promise((resolve, reject) => {
-        debugger;
         if(currentGroup.isnotdownload){
             const requestUUID = generateUUID();
             const timestamp = Math.floor(Date.now() / 1000).toString();
@@ -1463,7 +1461,6 @@ async function forcePushRelatedData(hash, md5, tracker, name) {
 }
 
 function getBlob(url, fileapiurl, callback) {
-    debugger;
     return new Promise((resolve, reject) => {
         GM_xmlhttpRequest({
             method: "GET",
@@ -1752,7 +1749,6 @@ async function get_media(command) {
 
         generateSignature(requestUUID, timestamp)
             .then((signature) => {
-                debugger;
                 var torrentBase64 ;
                 const element = document.getElementById('tBlob');
                 if (element) {
@@ -1839,7 +1835,6 @@ async function get_media(command) {
 }
 
 // ==================== 按钮控制 ====================
-debugger;
 if (site_url.match(/details.php\?id=\d+&uploaded=1/) || site_url.match(/torrents\/download_check/)) {
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
@@ -1950,7 +1945,6 @@ if (site_url.match(/torrent/) || site_url.match(/detail\//) || site_url.match(/d
 }
 if (site_url.match(/edit.php/)) {
     addButton('编辑完成', () => {
-        debugger;
         var editButton = document.querySelector('input[id="qr"]');
         if(!editButton){
             editButton = document.querySelector('input[value="编辑"]');
