@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.23
+// @version      3.24
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -452,7 +452,7 @@ style.textContent += `
 
 `;
 // daemon接口配置
-var apiurl = '';
+var addapiurl = '';
 var deployapiurl = '';
 var listapiurl = '';
 var deleteapiurl = '';
@@ -476,7 +476,7 @@ function initconfig() {
     config = loadConfig();
     currentGroup = config.groups[config.activeGroup];
 
-    apiurl = `${currentGroup.apidomain}/add_torrent`;
+    addapiurl = `${currentGroup.apidomain}/add_torrent`;
     deployapiurl = `${currentGroup.apidomain}/force_deploy`;
     listapiurl = `${currentGroup.apidomain}/get_info`;
     deleteapiurl = `${currentGroup.apidomain}/del_torrent`;
@@ -965,7 +965,7 @@ function getFile(url, leechtorrent) {
 
                     GM_xmlhttpRequest({
                         method: "POST",
-                        url: apiurl,
+                        url: addapiurl,
                         headers: {
                             "Content-Type": "application/json",
                             "uuid": requestUUID,
@@ -980,7 +980,8 @@ function getFile(url, leechtorrent) {
                                 var msg = [
                                     '种子链接推送成功',
                                     '种 子 名: ' + result.torrent_name,
-                                    'tracker: ' + result.tracker
+                                    'tracker: ' + result.tracker,
+                                    '是否可用: ' + (result.isavailable ? '可用' : '不可用')
                                 ].join('\n');
                                 addMsg(msg);
                                 resolve();
@@ -1066,7 +1067,7 @@ async function sendTorrentFile(torrentFile, leechtorrent) {
 
                     GM_xmlhttpRequest({
                         method: "POST",
-                        url: apiurl,
+                        url: addapiurl,
                         headers: {
                             "Content-Type": "application/json",
                             "uuid": requestUUID,
