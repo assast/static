@@ -2787,6 +2787,7 @@ function check_descr(descr){
 }
 
 function get_full_size_picture_urls(raw_info, imgs, container, need_img_label, callback) {
+    debugger;
     var img_urls = null;
     if (raw_info !== null) {
         img_urls = raw_info.descr.match(/(\[url=.*?\])?\[img\].*?\[\/img\](\[\/url\])?/ig);
@@ -6920,7 +6921,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
 
         $('#getsource').click((e)=>{
             var origin_str = $('#picture').val();
-            get_full_size_picture_urls(null, del_img_yb_assast_fun(origin_str), $('#result'), true);
+            get_full_size_picture_urls(null, origin_str, $('#result'), true);
         });
 
         $('#enter2space').click((e)=>{
