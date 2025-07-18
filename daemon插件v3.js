@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.25
+// @version      3.26
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -476,12 +476,12 @@ function initconfig() {
     config = loadConfig();
     currentGroup = config.groups[config.activeGroup];
 
-    addapiurl = `${currentGroup.apidomain}/add_torrent`;
-    deployapiurl = `${currentGroup.apidomain}/force_deploy`;
-    listapiurl = `${currentGroup.apidomain}/get_info`;
-    deleteapiurl = `${currentGroup.apidomain}/del_torrent`;
-    forceapiurl = `${currentGroup.apidomain}/force_deploy_torrents`;
-    mediaapiurl = `${currentGroup.apidomain}/get_media`;
+    addapiurl = `${currentGroup.apidomain}/add_torrent?apikey=${currentGroup.apikey}`;
+    deployapiurl = `${currentGroup.apidomain}/force_deploy?apikey=${currentGroup.apikey}`;
+    listapiurl = `${currentGroup.apidomain}/get_info?apikey=${currentGroup.apikey}`;
+    deleteapiurl = `${currentGroup.apidomain}/del_torrent?apikey=${currentGroup.apikey}`;
+    forceapiurl = `${currentGroup.apidomain}/force_deploy_torrents?apikey=${currentGroup.apikey}`;
+    mediaapiurl = `${currentGroup.apidomain}/get_media?apikey=${currentGroup.apikey}`;
     iyuuapi = `${currentGroup.rssapidomain}/api/iyuu?apikey=${currentGroup.apikey}`;
     rssapi = `${currentGroup.rssapidomain}/api/autobrr/rss_announce?apikey=${currentGroup.apikey}`;
 }
