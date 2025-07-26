@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.27
+// @version      3.28
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -1181,14 +1181,11 @@ async function listTorrent() {
         console.log(response.responseText);
         if (response.status == 200) {
             const data = JSON.parse(response.responseText);
-            if (data.status === "success" && data.action === "GETINFO") {
+            if (data.status === "success") {
                 const torrents = data.data;
                 const tableHTML = generateTableHTML(torrents);
 
                 displayTable(tableHTML);
-            } else {
-                addMsg('查询成功，但数据格式不正确', 'error');
-                throw new Error('数据格式不正确');
             }
         } else {
             const result = JSON.parse(response.responseText);
