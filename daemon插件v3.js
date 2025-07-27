@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.28
+// @version      3.29
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -1808,11 +1808,11 @@ async function get_media(command) {
                             }
                             resolve();
                         } else {
-                            var msg = [
+                            var errmsg = [
                                 '获取媒体信息失败',
                                 '失败原因: ' + result.message
                             ].join('\n');
-                            addMsg(msg, 'error');
+                            addMsg(errmsg, 'error');
                             reject(result.message);
                         }
                     },
