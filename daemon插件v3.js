@@ -1818,7 +1818,7 @@ async function get_media(command) {
                     },
                     onerror: function (error) {
                         console.error('获取媒体信息失败:', error);
-                        addMsg('获取媒体信息失败');
+                        addMsg('获取媒体信息失败','error');
                         reject(error);
                     }
                 });
