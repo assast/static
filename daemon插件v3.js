@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.30
+// @version      3.31
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -220,7 +220,7 @@ style.textContent += `
     gap: 5px;
     cursor: move;
     background: rgba(255, 255, 255, 0.1);
-    padding: 5px;
+    padding: 0px;
     border-radius: 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     transition: all 0.3s ease;
@@ -228,7 +228,7 @@ style.textContent += `
 
 /* 单个按钮样式 */
 .daemon-btn {
-    padding: 10px 18px;
+    padding: 8px 18px;
     background: linear-gradient(145deg, #e3f2fd, #bbdefb);
     color: #1976d2;
     border: none;
