@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.29
+// @version      3.30
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -975,17 +975,14 @@ function getFile(url, leechtorrent) {
                             console.log(response.responseText);
                             var result = JSON.parse(response.responseText);
                             if (response.status == 200 && result.status === 'success') {
-                                var msg = [
-                                    '种子链接推送成功',
-                                    '种 子 名: ' + result.torrent_name,
-                                    'tracker: ' + result.tracker,
-                                    '是否可用: ' + (result.isavailable ? '可用' : '不可用')
+                                var msg_str = [
+                                    (result.isavailable ? '可用' : '不可用')+'/'+ result.tracker,
+                                    result.torrent_name,
                                 ].join('\n');
-                                addMsg(msg);
+                                addMsg(msg_str);
                                 resolve();
                             } else {
                                 var msg = [
-                                    '种子链接推送失败',
                                     '失败原因: ' + result.message
                                 ].join('\n');
                                 addMsg(msg, 'error');
@@ -1077,17 +1074,14 @@ async function sendTorrentFile(torrentFile, leechtorrent) {
                             console.log(response.responseText);
                             const result = JSON.parse(response.responseText);
                             if (response.status == 200 && result.status === 'success') {
-                                const msg = [
-                                    '种子文件推送成功',
-                                    '种 子 名: ' + result.torrent_name,
-                                    'tracker: ' + result.tracker,
-                                    '是否可用: ' + (result.isavailable ? '可用' : '不可用')
+                                var msg_str = [
+                                    (result.isavailable ? '可用' : '不可用')+'/'+ result.tracker,
+                                    result.torrent_name,
                                 ].join('\n');
-                                addMsg(msg);
+                                addMsg(msg_str);
                                 resolve();
                             } else {
-                                const msg = [
-                                    '种子文件推送失败',
+                                var msg = [
                                     '失败原因: ' + result.message
                                 ].join('\n');
                                 addMsg(msg, 'error');
