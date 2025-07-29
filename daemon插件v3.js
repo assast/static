@@ -1860,10 +1860,10 @@ if (site_url.match(/torrent/) || site_url.match(/detail\//) || site_url.match(/d
             addMsg('未找到编辑按钮！');
         }
     });
-    addButton('发|推送', () => {
+    addButton('发|推', () => {
         return getFile(getUrl()); // 返回 Promise
     });
-    addButton('发|本地', () => {
+    addButton('发|本', () => {
         return new Promise((resolve, reject) => {
             const input = document.createElement('input');
             input.type = 'file';
@@ -1895,13 +1895,13 @@ if (site_url.match(/torrent/) || site_url.match(/detail\//) || site_url.match(/d
         });
     });
     if(currentGroup.buttons.leechtorrent){
-        addButton('进|推送', () => {
+        addButton('进|推', () => {
             if (!confirm(`确定进货？`)) return new Promise((resolve) => { });
             return getFile(getUrl(), true);
         });
     }
     if(currentGroup.buttons.leechtorrent1){
-        addButton('进|本地', () => {
+        addButton('进|本', () => {
             return new Promise((resolve, reject) => {
                 const input = document.createElement('input');
                 input.type = 'file';
@@ -1935,7 +1935,7 @@ if (site_url.match(/torrent/) || site_url.match(/detail\//) || site_url.match(/d
     }
 }
 if (site_url.match(/edit.php/)) {
-    addButton('编辑完成', () => {
+    addButton('编辑', () => {
         var editButton = document.querySelector('input[id="qr"]');
         if(!editButton){
             editButton = document.querySelector('input[value="编辑"]');
