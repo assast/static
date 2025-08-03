@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.33
+// @version      3.34
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -1766,40 +1766,32 @@ async function get_media(command) {
                         console.log(response.responseText);
                         const result = JSON.parse(response.responseText);
                         if (response.status == 200 && result.status === 'success') {
-                            var msg = '';
-                            if (now_site == 'Audiences') {
-                                msg = [
-                                    '[Mediainfo]',
-                                    result.data.output,
-                                    '[/Mediainfo]'
-                                ].join('\n');
-                                showMediaInfo(msg); // 使用 showMediaInfo 展示结果
-                            } else if (now_site == 'OurBits' || now_site == 'CHDBits') {
-                                msg = [
-                                    '[quote]',
-                                    result.data.output,
-                                    '[/quote]'
-                                ].join('\n');
-                                showMediaInfo(msg); // 使用 showMediaInfo 展示结果
-                            } else if (now_site == 'PTer') {
-                                msg = [
-                                    '[hide=mediainfo]',
-                                    result.data.output,
-                                    '[/hide]'
-                                ].join('\n');
-                                showMediaInfo(msg); // 使用 showMediaInfo 展示结果
-                            } /*else if (now_site == 'UBits') {
-                                var technical_info = document.getElementsByName('technical_info');
-                                if(technical_info){
-                                    technical_info[0].value = result.data.output;
+                            var msg = [
+                                result.data.output,
+                            ].join('\n');
+
+                            if (command == 'media'){
+                                if (now_site == 'Audiences') {
+                                    msg = [
+                                        '[Mediainfo]',
+                                        result.data.output,
+                                        '[/Mediainfo]'
+                                    ].join('\n');
+                                } else if (now_site == 'OurBits' || now_site == 'CHDBits') {
+                                    msg = [
+                                        '[quote]',
+                                        result.data.output,
+                                        '[/quote]'
+                                    ].join('\n');
+                                } else if (now_site == 'PTer') {
+                                    msg = [
+                                        '[hide=mediainfo]',
+                                        result.data.output,
+                                        '[/hide]'
+                                    ].join('\n');
                                 }
-                                addMsg('获取媒体信息成功,已自动替换');
-                            }*/ else {
-                                msg = [
-                                    result.data.output,
-                                ].join('\n');
-                                showMediaInfo(msg); // 使用 showMediaInfo 展示结果
                             }
+                            showMediaInfo(msg); // 使用 showMediaInfo 展示结果
                             resolve();
                         } else {
                             var errmsg = [
