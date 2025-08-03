@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.32
+// @version      3.33
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -1233,8 +1233,8 @@ function generateTableHTML(torrents) {
                     <td class="torrent-name">${torrent.torrent_name}</td>
                     <td>${torrent.torrent_size}</td>
                     <td>${torrent.torrent_tracker}</td>
-                    <td>${torrent.create_time}</td>
-                    <td>${torrent.modify_time}</td>
+                    <td>${torrent.create_time_str}</td>
+                    <td>${torrent.modify_time_str}</td>
                     <td class="${availableClass}">${torrent.isavailable ? '可用' : '不可用'}</td>
                     <td class="${pushedClass}">${torrent.ispushed ? '已推' : '未推'}</td>
                     <td>${torrent.sort}</td>
