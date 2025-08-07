@@ -460,6 +460,7 @@ var forceapiurl = '';
 var mediaapiurl = '';
 var iyuuapi = '';
 var rssapi = '';
+var shellapiurl = '';
 
 // 初始化配置
 var config = {};
@@ -484,6 +485,7 @@ function initconfig() {
     mediaapiurl = `${currentGroup.apidomain}/get_media?apikey=${currentGroup.apikey}`;
     iyuuapi = `${currentGroup.rssapidomain}/api/iyuu?apikey=${currentGroup.apikey}`;
     rssapi = `${currentGroup.rssapidomain}/api/autobrr/rss_announce_v2?apikey=${currentGroup.apikey}`;
+    shellapiurl = `${currentGroup.apidomain}/start_script?apikey=${currentGroup.apikey}`;
 }
 
 // 配置管理部分
@@ -1731,6 +1733,74 @@ function updateSwitchButtonLabel(groupName) {
     if (switchBtn) {
         switchBtn.textContent = `${groupName}`;
     }
+}
+async function start_script(command) {
+    return new Promise((resolve, reject) => {
+        var torrentBase64 ;
+        const element = document.getElementById('tBlob');
+        if (element) {
+            torrentBase64 =  element.value;
+        }
+        const payload = {
+            torrent_bytesio: torrentBase64,
+            command: command,
+            torrent_link: getUrl()
+        };
+
+        GM_xmlhttpRequest({
+            method: "POST",
+            url: shellapiurl,
+            headers: {
+                "Content-Type": "application/json",
+            },
+            data: JSON.stringify(payload),
+            onload: function (response) {
+                console.log(response.responseText);
+                const result = JSON.parse(response.responseText);
+                if (response.status == 200 && result.status === 'success') {
+                    var msg = [
+                        result.data.output,
+                    ].join('\n');
+
+                    if (command == 'media'){
+                        if (now_site == 'Audiences') {
+                            msg = [
+                                '[Mediainfo]',
+                                result.data.output,
+                                '[/Mediainfo]'
+                            ].join('\n');
+                        } else if (now_site == 'OurBits' || now_site == 'CHDBits') {
+                            msg = [
+                                '[quote]',
+                                result.data.output,
+                                '[/quote]'
+                            ].join('\n');
+                        } else if (now_site == 'PTer') {
+                            msg = [
+                                '[hide=mediainfo]',
+                                result.data.output,
+                                '[/hide]'
+                            ].join('\n');
+                        }
+                    }
+                    showMediaInfo(msg); // 使用 showMediaInfo 展示结果
+                    resolve();
+                } else {
+                    var errmsg = [
+                        '获取媒体信息失败',
+                        '失败原因: ' + result.message
+                    ].join('\n');
+                    addMsg(errmsg, 'error');
+                    reject(result.message);
+                }
+            },
+            onerror: function (error) {
+                console.error('获取媒体信息失败:', error);
+                addMsg('获取媒体信息失败','error');
+                reject(error);
+            }
+        });
+    });
 }
 
 async function get_media(command) {
