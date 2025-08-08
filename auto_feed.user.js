@@ -22582,7 +22582,7 @@ function auto_feed() {
                 standard_box.val(index);
             }
             var source_box = $('select[name="team_sel"]');
-            var source_dict = {'欧美': 1, '大陆': 3, '香港': 2, '台湾': 2, '日本': 4, '韩国': 4};
+            var source_dict = {'欧美': 1, '大陆': 3, '香港': 2, '台湾': 2, '日本': 4, '韩国': 4, '印度':5};
             source_box.val(10);
             if (source_dict.hasOwnProperty(raw_info.source_sel)){
                 var index = source_dict[raw_info.source_sel];
