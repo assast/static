@@ -94,7 +94,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      1.0.0.76
+// @version      1.0.0.77
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -14900,10 +14900,8 @@ function auto_feed() {
                     }
                     if ($('textarea[name="technical_info"]').val().match(/Dolby.{0,15}Atmos/)) { check_label(document.getElementsByName('tags[4][]'), '15'); }
                     if (labels.db) { check_label(document.getElementsByName('tags[4][]'), '8'); }
-                    if (raw_info.type == '剧集' || raw_info.type == '动漫') {
-                        if (raw_info.name.match(/S\d+[^E]/i)) {
-                            check_label(document.getElementsByName('tags[4][]'), '20');// assast 2024年12月25日12:11:43 合集标签
-                        }
+                    if (labels.complete){
+                        check_label(document.getElementsByName('tags[4][]'), '20');// assast 2024年12月25日12:11:43 合集标签
                     }
                     if (raw_info.name.match(/HLG/)) { check_label(document.getElementsByName('tags[4][]'), '19'); }// assast 2024年12月25日12:11:43 HLG标签
                     if (($('textarea[name="technical_info"]').val() && $('textarea[name="technical_info"]').val().match(/HDR Vivid/))) { check_label(document.getElementsByName('tags[4][]'), '18');  }// assast 2024年12月25日12:11:43 菁彩HDR标签
@@ -14926,10 +14924,8 @@ function auto_feed() {
 
                     if (labels.db) { check_label(document.getElementsByName('tag_dv'), '1'); }
                     // assast lemonhd标签错误 剧集 动漫 完结要勾选完结标签
-                    if (raw_info.type == '剧集' || raw_info.type == '动漫') {
-                        if (raw_info.name.match(/S\d+[^E]/i)) {
-                            check_label(document.getElementsByName('is_complete'), '1');;// assast 2024年12月25日12:11:43 合集标签
-                        }
+                    if (labels.complete){
+                        check_label(document.getElementsByName('is_complete'), '1');;// assast 2024年12月25日12:11:43 合集标签
                     }
                     break;
                 case 'WT-Sakura':
