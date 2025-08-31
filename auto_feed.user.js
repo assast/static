@@ -14843,6 +14843,15 @@ function auto_feed() {
                 // assast 原盘名规范成Blu-ray
                 raw_info.name = raw_info.name.replace( /(BluRay|Blu-Ray)/gi, 'Blu-ray');
             }
+            if (GM_info.script.name === "auto_feed_516182测试版") {
+                debugger;
+                const pattern = /\b(DDP|AAC|AC3|DTS)(\s*\d+\.\d+)?\b\s+\b(H\.264|H\.265|HEVC|AV1|VP9)\b/gi;
+                function fixCodeOrder(text) {
+                    return text.replace(pattern, '$3 $1$2');
+                }
+
+                raw_info.name = fixCodeOrder(raw_info.name)
+            }
         }
         if(forward_site == "MTeam"){
             if (raw_info.descr.match(/mpls/i)){
@@ -29488,8 +29497,11 @@ function addTorrentInput(id, ivalue) {
     input.type = 'text';
     input.value = ivalue;
     input.readOnly = true;
-    input.style.display = '';
-
+    if (GM_info.script.name === "auto_feed_516182测试版") {
+        input.style.display = '';
+    } else {
+        input.style.display = 'none';
+    }
     input.id = id; // 添加id
     input.style.position = 'fixed';
     input.style.top = (20 + idx * 30) + 'px';
