@@ -97,7 +97,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      2.0
+// @version      2.1
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -14845,12 +14845,22 @@ function auto_feed() {
             }
             if (GM_info.script.name === "auto_feed_516182测试版") {
                 debugger;
-                const pattern = /\b(DDP|AAC|AC3|DTS)(\s*\d+\.\d+)?\b\s+\b(H\.264|H\.265|HEVC|AV1|VP9)\b/gi;
+
+                // --- 修改开始 ---
+
+                // 1. 更新了正则表达式，以捕获更复杂的音频编码组合
+                const pattern = /\b((?:DDP|AAC|AC3|DTS(?:-HD)?|TrueHD)(?:\s*\d+\.\d(?:\.\d)?)?(?:\s*Atmos)?)\b\s+\b(H\.264|H\.265|HEVC|AV1|VP9)\b/gi;
+
                 function fixCodeOrder(text) {
-                    return text.replace(pattern, '$3 $1$2');
+                    // 2. 更新了替换逻辑，以匹配新的捕获组
+                    // $1 现在是完整的音频块 (例如 "DDP 5.1 Atmos")
+                    // $2 是视频编码 (例如 "H.264")
+                    return text.replace(pattern, '$2 $1');
                 }
 
-                raw_info.name = fixCodeOrder(raw_info.name)
+                // --- 修改结束 ---
+
+                raw_info.name = fixCodeOrder(raw_info.name);
             }
         }
         if(forward_site == "MTeam"){
