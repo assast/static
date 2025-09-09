@@ -14833,11 +14833,8 @@ function auto_feed() {
             raw_info.name = raw_info.name.replace(/(BluRay)(.*?)(AVC|VC-1|HEVC)(.*?)(REMUX)/i, '$1 $5 $3 $2').replace(/ +/g, ' ').replace(' -', '-');
         }
 
-        // assast 青蛙hdr10需要改为hdr 不能有10bit
-        if(forward_site == "QingWa"){
+        if (['Audiences', 'CMCT', 'CHDBits', 'OurBits', 'UBits', 'LemonHD', '麒麟', 'AGSV', 'ZMPT', 'CarPt', 'QingWa', 'HDfans', '象岛','PTer','HDDolby'].indexOf(forward_site) >= 0) {
             raw_info.name = raw_info.name.replace(/DD\+/g, 'DDP');
-            raw_info.name = raw_info.name.replace(/HDR10(?!\+)/g, 'HDR');
-            raw_info.name = raw_info.name.replace(/ 10bit/gi, "").replace(/ Complete/gi, "");
 
             if (raw_info.descr.match(/mpls/i)){
                 // assast 原盘名规范成Blu-ray
@@ -14862,6 +14859,11 @@ function auto_feed() {
 
                 raw_info.name = fixCodeOrder(raw_info.name);
             }
+        }
+        // assast 青蛙hdr10需要改为hdr 不能有10bit
+        if(forward_site == "QingWa"){
+            raw_info.name = raw_info.name.replace(/HDR10(?!\+)/g, 'HDR');
+            raw_info.name = raw_info.name.replace(/ 10bit/gi, "").replace(/ Complete/gi, "");
         }
         if(forward_site == "MTeam"){
             if (raw_info.descr.match(/mpls/i)){
