@@ -20731,10 +20731,10 @@ function auto_feed() {
             switch (raw_info.audiocodec_sel){
                 case 'DTS-HD': audiocodec_box.val(9); break;
                 case 'DTS-HDMA:X 7.1': audiocodec_box.val(9); break;
-                case 'DTS-HDMA': case 'DTS-HDHR': audiocodec_box.val(9); break;
+                case 'DTS-HDMA': audiocodec_box.val(9); break;
                 case 'TrueHD': audiocodec_box.val(10); break;
                 case 'Atmos': audiocodec_box.val(10); break;
-                case 'DTS': audiocodec_box.val(3); break;
+                case 'DTS':case 'DTS-HDHR': audiocodec_box.val(3); break;
                 case 'AC3': audiocodec_box.val(8); break;
                 case 'AAC': audiocodec_box.val(6); break;
                 case 'Flac': audiocodec_box.val(1); break;
