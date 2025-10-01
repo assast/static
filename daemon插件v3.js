@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.34
+// @version      3.35
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -11,6 +11,7 @@
 // @match        https://kp.m-team.cc/*
 // @match        https://*/torrent*
 // @match        https://totheglory.im/t/*
+// @match        http*://*/plugin_details.php*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
