@@ -97,7 +97,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      2.2
+// @version      2.3
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -835,7 +835,7 @@ if (site_url.match(/^https:\/\/(blutopia.cc|pt.hdpost.top|darkland.top|eiga.moi|
     return;
 }
 if (site_url.match(/^https:\/\/totheglory.im\/details.php\?id=\d+&uploaded=1/)) {
-   window.open($('a.index:contains(".torrent")').attr("href"), '_self');
+    window.open($('a.index:contains(".torrent")').attr("href"), '_self');
 }
 if (site_url.match(/^https:\/\/broadcasthe.net\/torrents.php\?id=\d+$/)) {
     if ($('a[href*="action=edit"]').length) {
@@ -2103,8 +2103,8 @@ function deal_img_350(pic_info) {
             var img_url = item.match(/http.*?(png|jpg)/)[0];
             // assast 外站要缩略图 不知道为啥要限定ptpimg 这里去掉
             // if (img_url.match(/ptpimg/)) {
-                var new_imgs = `[url=${img_url}]${item.replace('[img]', '[img=350x350]').replace('[IMG]', '[IMG=350x350]')}[/url]`;
-                pic_info = pic_info.replace(item, new_imgs);
+            var new_imgs = `[url=${img_url}]${item.replace('[img]', '[img=350x350]').replace('[IMG]', '[IMG=350x350]')}[/url]`;
+            pic_info = pic_info.replace(item, new_imgs);
             // }
         })
     }
@@ -2582,7 +2582,7 @@ String.prototype.get_label = function(){
         var sub_str = my_string.match(/(Audio.*?[\s\S]*?Japanese)/i)[0];
         if (!sub_str.match(/国家|Subtitles|Subtitle|Text.*?#/i)) {
             labels.ry = true;
-    }
+        }
     }
     if (my_string.match(/(Audio.*?[\s\S]*?Korean)/i)){
         var sub_str = my_string.match(/(Audio.*?[\s\S]*?Korean)/i)[0];
@@ -2599,8 +2599,8 @@ String.prototype.get_label = function(){
     if (my_string.match(/(Audio.*?[\s\S]*?cantonese)/i)){
         var sub_str = my_string.match(/(Audio.*?[\s\S]*?cantonese)/i)[0];
         if (!sub_str.match(/国家|Subtitles|Subtitle|Text.*?#/i)) {
-        labels.yy = true;
-    }
+            labels.yy = true;
+        }
     }
     if (my_string.match(/(Audio.*?[\s\S]*?[粤粵][语語])/i)){
         var sub_str = my_string.match(/(Audio.*?[\s\S]*?[粤粵][语語])/i)[0];
@@ -4275,7 +4275,7 @@ function getData(imdb_url, callback) {
                 try {
                     raw_data.image = $('#mainpic img', html)[0].src.replace(
                         /^.+(p\d+).+$/,
-                        (_, p1) => `https://img9.doubanio.com/view/photo/l_ratio_poster/public/${p1}.jpg`
+                        (_, p1) => `https://img2.doubanio.com/view/photo/l_ratio_poster/public/${p1}.jpg`
                     );
                 } catch(e) {raw_data.image = 'null'}
 
@@ -4317,7 +4317,7 @@ function getDataFromDou(douban_url, callback) {
         try {
             raw_data.image = $('#mainpic img', html)[0].src.replace(
                 /^.+(p\d+).+$/,
-                (_, p1) => `https://img9.doubanio.com/view/photo/l_ratio_poster/public/${p1}.jpg`
+                (_, p1) => `https://img2.doubanio.com/view/photo/l_ratio_poster/public/${p1}.jpg`
             );
         } catch(e) {raw_data.image = 'null'}
 
@@ -7974,7 +7974,7 @@ function getDoubanPoster(doc) {
     try {
         return $('#mainpic img', doc)[0].src.replace(
             /^.+(p\d+).+$/,
-            (_, p1) => `https://img9.doubanio.com/view/photo/l_ratio_poster/public/${p1}.jpg`
+            (_, p1) => `https://img2.doubanio.com/view/photo/l_ratio_poster/public/${p1}.jpg`
         );
     } catch (e) {
         return null;
@@ -8649,7 +8649,7 @@ if(site_url.match(/^https:\/\/movie.douban.com\/subject\/\d+/i) && if_douban_jum
         add_picture_transfer();
         var poster = $('#mainpic img')[0].src.replace(
             /^.+(p\d+).+$/,
-            (_, p1) => `https://img9.doubanio.com/view/photo/l_ratio_poster/public/${p1}.jpg`
+            (_, p1) => `https://img2.doubanio.com/view/photo/l_ratio_poster/public/${p1}.jpg`
         );
         $('input[name=img_url]').val(poster);
 
@@ -8698,7 +8698,7 @@ if (site_url.match(/^https:\/\/(music|book).douban.com\/subject\/\d+/)) {
     add_picture_transfer();
     var poster = $('#mainpic img')[0].src.replace(
         /^.+(p\d+).+$/,
-        (_, p1) => `https://img9.doubanio.com/view/photo/l_ratio_poster/public/${p1}.jpg`
+        (_, p1) => `https://img2.doubanio.com/view/photo/l_ratio_poster/public/${p1}.jpg`
     );
     $('input[name=img_url]').val(poster);
     function walk_Dom(n) {
@@ -13921,7 +13921,7 @@ function auto_feed() {
             return;
         }
         if (raw_info.descr.match(/img1.doubanio.com/)) {
-            raw_info.descr = raw_info.descr.replace(/img1.doubanio.com/, 'img9.doubanio.com');
+            raw_info.descr = raw_info.descr.replace(/img1.doubanio.com/, 'img2.doubanio.com');
         }
 
         if (raw_info.codec_sel == 'H264' && raw_info.name.match(/x264/)) {
@@ -15016,8 +15016,8 @@ function auto_feed() {
         raw_info.descr = raw_info.descr.replace('[img]https://wawawa.me/team/frogteam.svg[/img]','');
 
         if (['CMCT', 'PTsbao', 'HDPost','HDCity', 'BLU', 'UHD', 'HDSpace', 'HDB', 'iTS', 'PTP', 'BYR', 'GPW', 'HaresClub', 'HDTime',
-        'HD-Only', 'HDfans', 'SC', 'MTV', 'NBL', 'avz', 'PHD', 'CNZ', 'ANT', 'TVV', 'xthor', 'HDF', 'OpenCD', 'PigGo', 'RED', 'Tik', 'Aither',
-        'SugoiMusic', 'CG', 'ZHUQUE', 'MTeam', 'FNP', 'OnlyEncodes', 'YemaPT', 'DarkLand', '影', 'PTLGS', 'ReelFliX'].indexOf(forward_site) < 0){
+            'HD-Only', 'HDfans', 'SC', 'MTV', 'NBL', 'avz', 'PHD', 'CNZ', 'ANT', 'TVV', 'xthor', 'HDF', 'OpenCD', 'PigGo', 'RED', 'Tik', 'Aither',
+            'SugoiMusic', 'CG', 'ZHUQUE', 'MTeam', 'FNP', 'OnlyEncodes', 'YemaPT', 'DarkLand', '影', 'PTLGS', 'ReelFliX'].indexOf(forward_site) < 0){
             if (forward_site == 'HDT') {
                 descr_box[0].style.height = '600px';
                 var mediainfo_hdt = get_mediainfo_picture_from_descr(raw_info.descr);
@@ -23587,7 +23587,7 @@ function auto_feed() {
         else if (forward_site == 'UBits') {
             var browsecat = $('select[name=type]');
             var type_dict = {'电影': 401, '剧集': 402, '动漫': 405, '综艺': 403, '音乐': 408, '纪录': 404,
-                             '体育': 407, 'MV': 406, '': 408};
+                '体育': 407, 'MV': 406, '': 408};
             if (type_dict.hasOwnProperty(raw_info.type)){
                 var index = type_dict[raw_info.type];
                 browsecat.val(index);
