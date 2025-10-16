@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         daemon插件v3
 // @namespace    http://tampermonkey.net/
-// @version      3.35
+// @version      3.36
 // @description  在右上角添加按钮并点击发布
 // @author       Your name
 // @match        http*://*/upload.php*
@@ -2044,7 +2044,7 @@ if(currentGroup.buttons.panel){
     });
 }
 addButton('设置', handleSettings);
-addButton(`组|${config.activeGroup}`, () => {
+addButton(`${config.activeGroup}`, () => {
     showConfigSwitcher();
 });
 
