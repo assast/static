@@ -97,7 +97,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      2.3
+// @version      2.4
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -1027,7 +1027,7 @@ const default_site_info = {
     'PigGo': {'url': 'https://piggo.me/', 'enable': 1},
     'PTCafe': {'url': 'https://ptcafe.club/', 'enable': 1},
     'PTChina': {'url': 'https://ptchina.org/', 'enable': 1},
-    'PTer': {'url': 'https://pterclub.com/', 'enable': 1},
+    'PTer': {'url': 'https://pterclub.net/', 'enable': 1},
     'PThome': {'url': 'https://www.pthome.net/', 'enable': 1},
     'PTP': {'url': 'https://passthepopcorn.me/', 'enable': 1},
     'PTsbao': {'url': 'https://ptsbao.club/', 'enable': 1},
@@ -2833,7 +2833,7 @@ function get_full_size_picture_urls(raw_info, imgs, container, need_img_label, c
                 item = item.replace('thumbs2', 'images2').replace('t.png', 'o.png');
             } else if (item.match(/pixhost/)) {
                 item = item.replace('//t', '//img').replace('thumbs', 'images');
-            } else if (item.match(/shewang.net|pterclub.com|img4k.net|img.hdhome.org|img.hdchina.org/)) {
+            } else if (item.match(/shewang.net|pterclub.net|img4k.net|img.hdhome.org|img.hdchina.org/)) {
                 item = item.replace(/th.png/, 'png').replace(/md.png/, 'png');
             } else if (item.match(/beyondhd.co\/(images|cache)/)) {
                 item = item.replace(/th.png/, 'png').replace(/md.png/, 'png').replace('/t/', '/i/');
@@ -2914,12 +2914,12 @@ const skip_img = [
     '[img]https://hdsky.me/attachments/201410/20141003100205b81803ac0903724ad88de90649c5a36e.jpg[/img]',
     '[img]https://hdsky.me/adv/hds_logo.png[/img]',
     '[img]https://iili.io/XF9HEQ.png[/img]',
-    '[img]https://img.pterclub.com/images/2022/03/24/58ef34eb1c04aa6f87442e439d103b29.png[/img]',
-    '[img]https://img.pterclub.com/images/2021/07/14/78c58ee6b3e092d0c5a7fa02f3a1905e.png[/img]',
-    '[img]https://pterclub.com/pic/CS.png[/img]',
-    '[img]https://pterclub.com/pic/GDJT.png[/img]',
-    '[img]http://img.pterclub.com/images/CS.png[/img]',
-    '[img]https://img.pterclub.com/images/GDJT.png[/img]',
+    '[img]https://img.pterclub.net/images/2022/03/24/58ef34eb1c04aa6f87442e439d103b29.png[/img]',
+    '[img]https://img.pterclub.net/images/2021/07/14/78c58ee6b3e092d0c5a7fa02f3a1905e.png[/img]',
+    '[img]https://pterclub.net/pic/CS.png[/img]',
+    '[img]https://pterclub.net/pic/GDJT.png[/img]',
+    '[img]http://img.pterclub.net/images/CS.png[/img]',
+    '[img]https://img.pterclub.net/images/GDJT.png[/img]',
     '[img]https://kp.m-team.cc/logo.png[/img]',
     '[img]http://tpimg.ccache.org/images/2015/03/08/c736743e65f95c4b68a8acd3f3e2d599.png[/img]',
     '[img]https://ourbits.club/pic/Ourbits_info.png[/img]',
@@ -2928,8 +2928,8 @@ const skip_img = [
     '[img]https://img.m-team.cc/images/2016/12/05/d3be0d6f0cf8738edfa3b8074744c8e8.png[/img]',
     '[img]https://pic.imgdb.cn/item/6170004c2ab3f51d91c77825.png[/img]',
     '[img]https://pic.imgdb.cn/item/6170004c2ab3f51d91c7782a.png[/img]',
-    '[img]https://img.pterclub.com/images/CS.png[/img]',
-    '[img]https://img.pterclub.com/images/2022/10/19/1.gif[/img]',
+    '[img]https://img.pterclub.net/images/CS.png[/img]',
+    '[img]https://img.pterclub.net/images/2022/10/19/1.gif[/img]',
     '[img]https://img93.pixhost.to/images/86/435614074_c5134549f13c2c087d67c9fa4089c49e-removebg-preview.png[/img]'
 ];
 
@@ -3153,7 +3153,7 @@ function fill_raw_info(raw_info, forward_site){
         }
     }
 
-    raw_info.descr = raw_info.descr.replace(/\n\n+/g, '\n\n').replace('https://dbimg.audiences.me/?', '').replace('https://imgproxy.pterclub.com/douban/?t=', '');
+    raw_info.descr = raw_info.descr.replace(/\n\n+/g, '\n\n').replace('https://dbimg.audiences.me/?', '').replace('https://imgproxy.pterclub.net/douban/?t=', '');
     raw_info.descr = raw_info.descr.replace('https://imgproxy.tju.pt/?url=', '');
 
     if (raw_info.edition_info.codec_sel()) {
@@ -6609,7 +6609,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
                 });
             }
             if (used_signin_sites.indexOf('PTer') > -1) {
-                getJson('https://pterclub.com/attendance-ajax.php', null, function(data){
+                getJson('https://pterclub.net/attendance-ajax.php', null, function(data){
                     if (typeof data == 'object') {
                         console.log(`开始签到猫站：`, data);
                         $(`input[kname=PTer]`).parent().find('a').css({"color": "red"});
@@ -8517,7 +8517,7 @@ function add_picture_transfer() {
     });
 }
 
-if (site_url.match(/^https:\/\/pterclub.com\/upload.php/)) {
+if (site_url.match(/^https:\/\/pterclub.net\/upload.php/)) {
     $('input[name=url]:first').after(`<input type="button" value="获取简介" class="get_descr" data="url" />`);
     $('input[name=douban]').after(`<input type="button" value="获取简介" class="get_descr" data="douban" />`);
     $('.get_descr').click((e)=>{
@@ -12429,7 +12429,7 @@ function auto_feed() {
         }
 
         if (origin_site == 'PTer'){
-            raw_info.descr = raw_info.descr.replace(/https:\/\/pterclub.com\/link.php\?sign=.*?&target=/ig, '');
+            raw_info.descr = raw_info.descr.replace(/https:\/\/pterclub.net\/link.php\?sign=.*?&target=/ig, '');
         }
 
         if (origin_site == 'BYR') {
@@ -12601,7 +12601,7 @@ function auto_feed() {
 
         raw_info.torrent_name = raw_info.torrent_name.replace('#', '').replace(':', '.');
 
-        raw_info.descr = raw_info.descr.replace(/\n\n+/g, '\n\n').replace('https://dbimg.audiences.me/?', '').replace('https://imgproxy.pterclub.com/douban/?t=', '');
+        raw_info.descr = raw_info.descr.replace(/\n\n+/g, '\n\n').replace('https://dbimg.audiences.me/?', '').replace('https://imgproxy.pterclub.net/douban/?t=', '');
 
         if ($('td:contains(下載鏈接)').length) {
             raw_info.torrent_url = used_site_info[origin_site].url + $('td:contains(下載鏈接)').next().find('a').attr('href');
@@ -24730,7 +24730,7 @@ function auto_feed() {
                     var img_urls = [];
                     infos.pic_info.match(/\[img\](.*?)\[\/img\]/g).map((e)=>{
                         var img_url = e.match(/\[img\](.*?)\[\/img\]/)[1];
-                        if (img_url.match(/img.pterclub.com/)) {
+                        if (img_url.match(/img.pterclub.net/)) {
                             img_url = img_url.replace('.th.', '.');
                         }
                         img_urls.push(img_url);
