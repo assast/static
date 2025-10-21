@@ -97,7 +97,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      2.4
+// @version      2.5
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -903,10 +903,10 @@ if (site_url.match(/https:\/\/hd-space.org\/index.php\?page=upload/)) {
         return;
     }
 }
-if (site_url.match(/^https:\/\/beyond-hd.me\/download_check\//)) {
-    window.open($('a[href*="beyond-hd.me/download"]').has('i').attr('href'), '_blank');
-    return;
-}
+// if (site_url.match(/^https:\/\/beyond-hd.me\/download_check\//)) {
+//     window.open($('a[href*="beyond-hd.me/download"]').has('i').attr('href'), '_blank');
+//     return;
+// }
 if (site_url.match(/^https:\/\/hdbits.org\/details.php\?id=\d+&uploaded=1/)) {
     window.open($('a[href*="/download.php/"]').attr('href'), '_blank');
     return;
@@ -12126,8 +12126,8 @@ function auto_feed() {
         if (origin_site == 'BHD'){
 
             var mediainfo_box = $('div[id*="stats-full"]')[0];
-            var code_box = mediainfo_box.getElementsByTagName('code')[0];
-            var mediainfo = code_box.textContent.trim();
+            var code_box = mediainfo_box.getElementsByTagName('pre')[0];
+            var mediainfo = code_box?.textContent?.trim() || "";
 
             var picture_info = document.getElementsByClassName('decoda-image');
             var img_urls = '';
@@ -14840,25 +14840,21 @@ function auto_feed() {
                 // assast 原盘名规范成Blu-ray
                 raw_info.name = raw_info.name.replace( /(BluRay|Blu-Ray)/gi, 'Blu-ray');
             }
-            if (GM_info.script.name === "auto_feed_516182测试版") {
-                debugger;
+            // --- 修改开始 ---
 
-                // --- 修改开始 ---
+            // 1. 更新了正则表达式，以捕获更复杂的音频编码组合
+            const pattern = /\b((?:DDP|AAC|AC3|DTS(?:-HD)?|TrueHD)(?:\s*\d+\.\d(?:\.\d)?)?(?:\s*Atmos)?)\b\s+\b(H\.264|H\.265|HEVC|AV1|VP9)\b/gi;
 
-                // 1. 更新了正则表达式，以捕获更复杂的音频编码组合
-                const pattern = /\b((?:DDP|AAC|AC3|DTS(?:-HD)?|TrueHD)(?:\s*\d+\.\d(?:\.\d)?)?(?:\s*Atmos)?)\b\s+\b(H\.264|H\.265|HEVC|AV1|VP9)\b/gi;
-
-                function fixCodeOrder(text) {
-                    // 2. 更新了替换逻辑，以匹配新的捕获组
-                    // $1 现在是完整的音频块 (例如 "DDP 5.1 Atmos")
-                    // $2 是视频编码 (例如 "H.264")
-                    return text.replace(pattern, '$2 $1');
-                }
-
-                // --- 修改结束 ---
-
-                raw_info.name = fixCodeOrder(raw_info.name);
+            function fixCodeOrder(text) {
+                // 2. 更新了替换逻辑，以匹配新的捕获组
+                // $1 现在是完整的音频块 (例如 "DDP 5.1 Atmos")
+                // $2 是视频编码 (例如 "H.264")
+                return text.replace(pattern, '$2 $1');
             }
+
+            // --- 修改结束 ---
+
+            raw_info.name = fixCodeOrder(raw_info.name);
         }
         // assast 青蛙hdr10需要改为hdr 不能有10bit
         if(forward_site == "QingWa"){
@@ -19934,6 +19930,7 @@ function auto_feed() {
                 $('#mediainfo').css({'height': '600px'});
                 var pic_info = deal_img_350(infos.pic_info);
                 $('#upload-form-description').val(pic_info);
+                document.getElementById('upload-form-description').dispatchEvent(new Event('input', { bubbles: true }));
                 $('#upload-form-description').parent().after(`<div style="margin-bottom:5px"><a id="img350" style="margin-left:5px" href="#">IMG350</a>
                     <font style="margin-left:5px" color="red">选中要转换的bbcode图片部分点击即可。</font></div>
                 `);
@@ -19944,9 +19941,15 @@ function auto_feed() {
                     if (textarea && textarea.selectionStart != undefined && textarea.selectionEnd != undefined){
                         var chosen_value = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
                         if (chosen_value) {
-                            $('#upload-form-description').val(text.replace(chosen_value, chosen_value.replace(/\[img\]/g, '[img=350]')));
+                            var replaced = del_img_wz_assast_fun(chosen_value);
+                            replaced = replaced.replace(/\s*(\[url=.*?\[\/url\])\s*/gi, '$1');
+                            $('#upload-form-description').val(text.replace(chosen_value, replaced));
+                            document.getElementById('upload-form-description').dispatchEvent(new Event('input', { bubbles: true }));
                         } else {
-                            $('#upload-form-description').val(text.replace(/\[img\]/g, '[img=350x350]'));
+                            var replacedAll = text.replace(/\[img(?:=\d+(?:x\d+)?)?\]/gi, '[img=350x350]');
+                            replacedAll = replacedAll.replace(/\]\s+\[/g, '][');
+                            $('#upload-form-description').val(replacedAll);
+                            document.getElementById('upload-form-description').dispatchEvent(new Event('input', { bubbles: true }));
                         }
                     }
                 });
