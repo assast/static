@@ -20735,6 +20735,7 @@ function auto_feed() {
                 $('#mediainfo').css({'height': '600px'});
                 var pic_info = deal_img_350(infos.pic_info);
                 $('#upload-form-description').val(pic_info);
+                document.getElementById('upload-form-description').dispatchEvent(new Event('input', { bubbles: true }));
                 $('#upload-form-description').parent().after(`<div style="margin-bottom:5px"><a id="img350" style="margin-left:5px" href="#">IMG350</a>
                     <font style="margin-left:5px" color="red">选中要转换的bbcode图片部分点击即可。</font></div>
                 `);
@@ -20745,9 +20746,15 @@ function auto_feed() {
                     if (textarea && textarea.selectionStart != undefined && textarea.selectionEnd != undefined){
                         var chosen_value = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
                         if (chosen_value) {
-                            $('#upload-form-description').val(text.replace(chosen_value, chosen_value.replace(/\[img\]/g, '[img=350]')));
+                            var replaced = del_img_wz_assast_fun(chosen_value);
+                            replaced = replaced.replace(/\s*(\[url=.*?\[\/url\])\s*/gi, '$1');
+                            $('#upload-form-description').val(text.replace(chosen_value, replaced));
+                            document.getElementById('upload-form-description').dispatchEvent(new Event('input', { bubbles: true }));
                         } else {
-                            $('#upload-form-description').val(text.replace(/\[img\]/g, '[img=350x350]'));
+                            var replacedAll = text.replace(/\[img(?:=\d+(?:x\d+)?)?\]/gi, '[img=350x350]');
+                            replacedAll = replacedAll.replace(/\]\s+\[/g, '][');
+                            $('#upload-form-description').val(replacedAll);
+                            document.getElementById('upload-form-description').dispatchEvent(new Event('input', { bubbles: true }));
                         }
                     }
                 });
