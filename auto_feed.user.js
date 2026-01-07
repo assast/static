@@ -97,7 +97,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      2.8
+// @version      2.9
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -17277,7 +17277,7 @@ function auto_feed() {
                 case 'DTS': audiocodec_box.val(3); break;
                 case 'AC3':
                     audiocodec_box.val(4);
-                    if (raw_info.name.match(/DD[\+p]/)) {
+                    if (raw_info.name.match(/DD[\+p]/i)) {
                         audiocodec_box.val(11);
                     }
                     break;
@@ -24450,7 +24450,7 @@ function auto_feed() {
                 case 'APE': audiocodec_box.val(2); break;
                 case 'AC3':
                     audiocodec_box.val(13);
-                    if (raw_info.name.match(/DD[\+p]/)) {
+                    if (raw_info.name.match(/DD[\+p]/i)) {
                         audiocodec_box.val(12);
                     }
                     break;
