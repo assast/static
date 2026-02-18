@@ -1403,7 +1403,7 @@ const o_site_info = {
     'SpeedApp': 'https://speedapp.io/',
     'MTeam': used_site_info.MTeam.url,
     'ReelFliX': 'https://reelflix.xyz/',
-    'HHClub': 'https://hhanclub.top/',
+    'HHClub': 'https://hhanclub.net/',
     'SportsCult': 'https://sportscult.org/'
 };
 
@@ -1420,8 +1420,8 @@ if (tldomain == 0) {
 if (site_url.match(/^https:\/\/hhan.club\/.*/)) {
     o_site_info.HHClub = 'https://hhan.club/';
     GM_setValue('o_site_info', JSON.stringify(o_site_info));
-} else if (site_url.match(/^https:\/\/hhanclub.top\/.*/)) {
-    o_site_info.HHClub = 'https://hhanclub.top/';
+} else if (site_url.match(/^https:\/\/hhanclub.net\/.*/)) {
+    o_site_info.HHClub = 'https://hhanclub.net/';
     GM_setValue('o_site_info', JSON.stringify(o_site_info));
 }
 
@@ -2006,7 +2006,7 @@ function walkDOM(n) {
                     n.innerHTML = '[quote]' + n.innerHTML + '[/quote]';
                 }
             }
-            if (site_url.match(/hhanclub.top|hhan.club/)) {
+            if (site_url.match(/hhanclub.net|hhan.club/)) {
                 n.innerHTML = n.innerHTML + '\n';
             }
         } else if (n.nodeName == 'FIELDSET' || n.nodeName == 'BLOCKQUOTE') {
