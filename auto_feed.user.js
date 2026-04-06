@@ -97,7 +97,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      2.9.2
+// @version      2.9.3
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -9444,6 +9444,8 @@ function auto_feed() {
                     raw_info.torrent_url = $('td:contains(下载链接)').next().find('a').attr('href');
                     if (origin_site == 'HDArea') {
                         raw_info.torrent_url = $('td:contains(下载链接)').next().text().split('链接')[0];
+                    } else if (origin_site == 'Audiences') {
+                        raw_info.torrent_url = $("#passkeyDlUrl").val();
                     }
                 } else if ($('td:contains(下載鏈接)').length) {
                     raw_info.torrent_url = $('td:contains(下載鏈接)').next().find('a').attr('href');
