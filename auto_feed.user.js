@@ -97,7 +97,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      2.9.3
+// @version      2.9.4
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -4157,9 +4157,17 @@ function get_size_from_descr(descr){
 }
 
 function match_link(site, data) {
+    data = (data || '').toString();
     var link = '';
-    if (site == 'imdb' && data.match(/http(s*):\/\/.*?imdb.com\/title\/tt\d+/i)){
-        link = imdb_prex + data.match(/tt\d{5,13}/i)[0] + '/';
+    if (site == 'imdb') {
+        var imdb_match = data.match(/imdb\.com\/title\/tt?(\d{5,13})/i) || data.match(/\btt(\d{5,13})\b/i);
+        if (imdb_match) {
+            var imdb_id = imdb_match[1];
+            if (imdb_id.length < 7) {
+                imdb_id = imdb_id.padStart(7, '0');
+            }
+            link = imdb_prex + 'tt' + imdb_id + '/';
+        }
     } else if (site == 'douban' && data.match(/http(s*):\/\/.*?douban.com\/subject\/(\d+)/i)){
         link = douban_prex + data.match(/subject\/(\d+)/i)[1] + '/';
     } else if (site == 'anidb' && data.match(/https:\/\/anidb\.net\/a\d+/i)){
@@ -4625,8 +4633,11 @@ function build_blob_from_torrent(r, forward_announce, forward_site, filetype, ca
         }
         var new_torrent = 'd';
         var announce = 'https://hudbt.hust.edu.cn/announce.php';
-        if (forward_announce !== null) {
-            announce = forward_announce;
+        if (typeof forward_announce === 'string' && forward_announce.trim()) {
+            announce = forward_announce.trim();
+        }
+        if (!announce || typeof announce !== 'string') {
+            announce = 'https://hudbt.hust.edu.cn/announce.php';
         }
         if (r.match(/8:announce\d+:/)) {
             var new_announce = `8:announce${announce.length}:${announce}`;
@@ -4680,9 +4691,87 @@ function getBlob(url, forward_announce, forward_site, filetype, callback) {
     });
 }
 
+function get_page_data_transfer() {
+    try {
+        const Ctor = window?.DataTransfer;
+        if (typeof Ctor === 'function') {
+            return new Ctor();
+        }
+    } catch (err) {}
+    try {
+        const ev = new ClipboardEvent('');
+        if (ev.clipboardData) {
+            return ev.clipboardData;
+        }
+    } catch (err) {}
+    try {
+        return new DataTransfer();
+    } catch (err) {
+        return null;
+    }
+}
+
+function inject_files_to_input(file_input, files) {
+    let assigned = false;
+    try {
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'files')?.set;
+        if (setter) {
+            setter.call(file_input, files);
+            assigned = true;
+        }
+    } catch (err) {}
+    if (!assigned) {
+        try {
+            file_input.files = files;
+            assigned = true;
+        } catch (err) {}
+    }
+    if (!assigned) {
+        return false;
+    }
+    try {
+        file_input.dispatchEvent(new Event('input', { bubbles: true }));
+    } catch (err) {}
+    try {
+        file_input.dispatchEvent(new Event('change', { bubbles: true }));
+    } catch (err) {}
+    return !!(file_input.files && file_input.files.length);
+}
+
 function fill_torrent(forward_site, container, name) {
     if (['BHD', 'BLU', 'Tik', 'ACM', 'HDSpace', 'xthor', 'Monika', 'Aither', 'FNP', 'OnlyEncodes', 'DarkLand', 'ReelFliX'].indexOf(forward_site) > -1) {
-        $('#torrent')[0].files = container.files;
+        const selectors = [
+            '#torrent',
+            'input[type="file"]#torrent',
+            'input[type="file"][name="torrent"]',
+            'input[type="file"][accept*="torrent"]',
+            'input.upload-form-file[type="file"]',
+            'input[type="file"]#file',
+            'input[type="file"][name="file"]'
+        ];
+        const assign_torrent_file = function(retry) {
+            var torrent_input = document.querySelector(selectors.join(', '));
+            if (!torrent_input) {
+                if (retry < 15) {
+                    setTimeout(function(){ assign_torrent_file(retry + 1); }, 500);
+                }
+                return false;
+            }
+            let target_files = container.files;
+            const dt = get_page_data_transfer();
+            if (dt && dt.items && container.files && container.files.length) {
+                try {
+                    Array.from(container.files).forEach(f => dt.items.add(f));
+                    target_files = dt.files;
+                } catch (err) {}
+            }
+            const ok = inject_files_to_input(torrent_input, target_files);
+            if (!ok && retry < 15) {
+                setTimeout(function(){ assign_torrent_file(retry + 1); }, 500);
+            }
+            return ok;
+        };
+        assign_torrent_file(0);
     } else if (['GPW', 'UHD', 'PTP', 'SC', 'MTV', 'NBL', 'ANT', 'TVV', 'HDF', 'BTN', 'DICMusic', 'OPS', 'RED', 'SugoiMusic'].indexOf(forward_site) > -1) {
         $('input[name=file_input]')[0].files = container.files;
         setTimeout(function(){$('#file')[0].dispatchEvent(evt);}, 1000);
@@ -10231,19 +10320,41 @@ function auto_feed() {
         }
 
         if (origin_site == 'HONE') {
-            raw_info.url = match_link('imdb', $('#meta-info').html());
+            var hone_meta_html = $('#meta-info').html() || $('body').html() || '';
+            raw_info.url = match_link('imdb', hone_meta_html);
             raw_info.type = $('.torrent-category').text().get_type();
-            $('div[class="meta-general box container"]').prepend(`
-                <div style="padding-left:55px; padding-right:55px">
-                    <table id="mytable">
-                    </table>
-                </div>
-            `);
+            var hone_mount = $('main.deep-space-torrent__right').first();
+            if (!hone_mount.length) {
+                hone_mount = $('aside.deep-space-torrent__left .deep-space-user-card__panel').first();
+            }
+            if (!hone_mount.length) {
+                hone_mount = $('div[class="meta-general box container"]').first();
+            }
+            if (!hone_mount.length) {
+                hone_mount = $('body').first();
+            }
+            if (!$('#mytable').length) {
+                hone_mount.prepend(`
+                    <div style="padding-left:55px; padding-right:55px">
+                        <table id="mytable">
+                        </table>
+                    </div>
+                `);
+            }
             tbody = $('#mytable')[0];
-            insert_row = tbody.insertRow(0);
-            douban_box = tbody.insertRow(0);
+            if (!tbody) {
+                hone_mount.prepend(`<table id="mytable"></table>`);
+                tbody = $('#mytable')[0];
+            }
+            if (tbody) {
+                insert_row = tbody.insertRow(0);
+                douban_box = tbody.insertRow(0);
+            }
 
             raw_info.name = $('span[class="torrent-category badge-extra"]:first').text().replace(/\(|\)/g, '').replace(/English-/, '-');
+            if (!raw_info.name) {
+                raw_info.name = (document.title || '').replace(/\s*-\s*Torrents.*$/i, '').trim();
+            }
             var search_name = get_search_name(raw_info.name);
             if (all_sites_show_douban) {
                 getData(raw_info.url, function(data){
@@ -10255,11 +10366,22 @@ function auto_feed() {
                     }
                 });
             }
-            raw_info.descr = '[quote]' + $('.torrent-mediainfo-dump').find('pre').text().trim() + '\n[/quote]\n\n';
-            $('.torrent-description').find('a').has('img').map((index,e)=>{
+            var hone_mediainfo = $('.torrent-mediainfo-dump').find('pre').text();
+            if (!hone_mediainfo) {
+                hone_mediainfo = $('pre.deep-space-torrent__code').first().text();
+            }
+            raw_info.descr = '[quote]' + (hone_mediainfo || '').trim() + '\n[/quote]\n\n';
+            var hone_descr_box = $('.torrent-description');
+            if (!hone_descr_box.length) {
+                hone_descr_box = $('.deep-space-torrent__description');
+            }
+            hone_descr_box.find('a').has('img').map((index,e)=>{
                 raw_info.descr += `[url=${$(e).attr("href")}][img]${$(e).find("img").attr("src")}[/img][/url]`
             });
             raw_info.torrent_url = $('.button-block').find('a[href*="torrents/download"]').attr('href');
+            if (!raw_info.torrent_url) {
+                raw_info.torrent_url = $('a.deep-space-user-card__chip--download[href*="/torrents/download/"], a[href*="/torrents/download/"]').first().attr('href');
+            }
         }
 
         if (origin_site == 'BLU') {
@@ -11425,7 +11547,15 @@ function auto_feed() {
                     if (origin_site == 'U2') {
                         raw_info.small_descr = $(tds[i]).parent().find('td:last').text();
                     } else if (origin_site != 'FileList') {
-                        raw_info.small_descr += tds[i].parentNode.lastChild.textContent;
+                        if (origin_site == 'Audiences') {
+                            // Audiences subtitle cell now contains a rating sidebar.
+                            // Prefer the left subtitle node and ignore rating text.
+                            var subtitle_cell = tds[i].parentNode.lastChild;
+                            var audiences_subtitle = $(subtitle_cell).find(`div[style*="flex:1 1 auto"]`).first().text().trim();
+                            raw_info.small_descr += audiences_subtitle ? audiences_subtitle : subtitle_cell.textContent;
+                        } else {
+                            raw_info.small_descr += tds[i].parentNode.lastChild.textContent;
+                        }
                     }
                 }
             }
@@ -12937,6 +13067,11 @@ function auto_feed() {
         }
 
         raw_info.small_descr = deal_with_subtitle(raw_info.small_descr);
+        if (origin_site == 'Audiences') {
+            // Fallback cleanup for cases where rating text is still appended.
+            raw_info.small_descr = raw_info.small_descr.replace(/\s*\d+(?:\.\d+)?\/10(?:\s*[\|\/,]?\s*\d+(?:\.\d+)?\/10)+\s*$/i, '').trim();
+            raw_info.small_descr = raw_info.small_descr.replace(/\s*\d+(?:\.\d+)?\/10\s*$/i, '').trim();
+        }
         raw_info.descr = add_thanks(raw_info.descr);
         raw_info.descr = raw_info.descr.replace(/\[quote\].*?转自.*?感谢.*?\[\/quote\]/, '');
 
@@ -16983,8 +17118,10 @@ function auto_feed() {
                 torrent_box.parentNode.innerHTML = ' <input class="beta-form-main" type="file" accept=".torrent" name="torrent" id="torrent" style="width: 100% !important;" required="">';
             } else if (['DarkLand', 'ACM', 'Monika', 'FNP', 'OnlyEncodes', 'ReelFliX'].indexOf(forward_site) > -1) {
                 torrent_box.parentNode.innerHTML = '<label for="torrent" class="form__label">Torrent 文件</label><input class="upload-form-file form__file" type="file" accept=".torrent" name="torrent" id="torrent" required="">';
-            } else if (forward_site == 'BLU' || forward_site == 'Tik' || forward_site == 'Aither') {
-                torrent_box.parentNode.innerHTML = '<label for="torrent" class="form__label">Torrent File</label><input class="upload-form-file form__file" type="file" accept=".torrent" name="torrent" id="torrent" required="">';
+            } else if (forward_site == 'BLU') {
+                // Keep BLU original input node to avoid breaking site-side bindings.
+            } else if (forward_site == 'Tik' || forward_site == 'Aither') {
+                torrent_box.parentNode.innerHTML = '<label for="torrent" class="form__label">Torrent File</label><input class="upload-form-file form__file" type="file" accept=".torrent" name="torrent" id="torrent" required="" x-bind="torrentFile">';
             } else if (forward_site != 'xthor') {
                 torrent_box.parentNode.innerHTML = '<input type="file" class="file" id="torrent" name="file" accept=".torrent">';
             } else if (forward_site == 'xthor') {
@@ -22926,6 +23063,9 @@ function auto_feed() {
                 var announce = $('a[href*="https://cinematik.net/"]').attr('href');
             } else {
                 var announce = $('h2:contains(announce)').text().replace('Announce URL:', '').trim();
+            }
+            if (!announce || typeof announce !== 'string') {
+                announce = null;
             }
             addTorrent(raw_info.torrent_url, raw_info.torrent_name, forward_site, announce);
 
