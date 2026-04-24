@@ -2715,12 +2715,19 @@ function judge_forward_site_in_domestic(site){
 //从简介和名称获取副标题
 function get_small_descr_from_descr(descr, name){
     var small_descr = '', videoname = '', sub_str = '', type_str = '';
+    var movie_name = '';
     if (descr.match(/译.{0,5}名[^\r\n]+/)) {
         videoname = descr.match(/译.*?名([^\r\n]+)/)[1];
         if (!/.*[\u4e00-\u9fa5]+.*/.test(videoname) || videoname.trim() == '') {
             try{videoname = descr.match(/片.*?名([^\r\n]+)/)[1];} catch (err) {}
         }
         videoname = videoname.trim(); //去除首尾空格
+        try{
+            movie_name = descr.match(/片.*?名([^\r\n]+)/)[1].split('/')[0].trim();
+            if (/[\u4e00-\u9fa5]/.test(movie_name) && movie_name && videoname.indexOf(movie_name) === -1) {
+                videoname = movie_name + ' / ' + videoname;
+            }
+        } catch (err) {}
         if (name.match(/S\d{2}E\d{2}/i)) { //电视剧单集
             sub_str = name.match(/S(\d{2})E(\d{2})/i);
             sub_str = ' *第' + numToChinese(parseInt(sub_str[1])) + '季 第' + parseInt(sub_str[2]) +'集*';
