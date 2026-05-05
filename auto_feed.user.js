@@ -97,7 +97,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      2.9.5
+// @version      2.9.6
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -7657,10 +7657,17 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
         })
         $('#del_img_ssd_assast').click((e)=>{
             var origin_str = $('#picture').val();
-            images = origin_str.match(/\[img.*?\]http[^\[\]]*?(jpg|png)\[\/img\]/ig)
+            // 先确保有[img]标签（兼容直接链接输入）
+            origin_str = ensure_img_tags(origin_str);
+            // 先执行一次“获取大图”，把缩略图替换成原图链接
+            var $temp = $('<textarea></textarea>');
+            get_full_size_picture_urls(null, origin_str, $temp, true);
+            var converted = $temp.val() || origin_str;
+            // 再走 toSSD 的直链提取逻辑
+            images = converted.match(/\[img.*?\]http[^\[\]]*?(jpg|png)\[\/img\]/ig)
 
             resultImgs = [];
-            if (images.length) {
+            if (images && images.length) {
                 images.map((item)=>{
                     var img_url = item.match(/http.*?(png|jpg)/)[0];
                     resultImgs.push(img_url);
@@ -7670,6 +7677,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
         })
         $('#del_img_hdt_assast').click((e)=>{
             var origin_str = $('#picture').val();
+            origin_str = ensure_img_tags(origin_str);
             images = origin_str.match(/\[img.*?\]http[^\[\]]*?(jpg|png)\[\/img\]/ig)
 
             resultImgs = [];
@@ -7915,11 +7923,30 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
         return;
     }, 1000)
 }
+// 若输入框里是“直接链接”（未带 [img] 标签），自动逐行包裹成 [img]xxx[/img]
+function ensure_img_tags(origin_str){
+    if (!origin_str) return origin_str;
+    if (/\[img/i.test(origin_str)) return origin_str;
+    var lines = origin_str.split(/\r?\n/);
+    var out = [];
+    lines.forEach(function(line){
+        line = line.trim();
+        if (!line) return;
+        if (/^https?:\/\/\S+\.(jpg|jpeg|png|webp)(\?\S*)?$/i.test(line)) {
+            out.push('[img]' + line + '[/img]');
+        } else {
+            out.push(line);
+        }
+    });
+    return out.join('\n');
+}
+
 function del_img_wz_assast_fun(origin_str){
+    origin_str = ensure_img_tags(origin_str);
     images = origin_str.match(/\[img.*?\]http[^\[\]]*?(jpg|png)\[\/img\]/ig)
 
     resultImgs = [];
-    if (images.length) {
+    if (images && images.length) {
         images.map((item)=>{
             var img_url = item.match(/http.*?(png|jpg)/)[0];
             var new_imgs = `[url=${img_url}][img=350x350]${img_url}[/img][/url]`;
@@ -7929,10 +7956,11 @@ function del_img_wz_assast_fun(origin_str){
     return resultImgs.join("");
 }
 function del_img_yb_assast_fun(origin_str){
+    origin_str = ensure_img_tags(origin_str);
     images = origin_str.match(/\[img.*?\]http[^\[\]]*?(jpg|png)\[\/img\]/ig)
 
     resultImgs = [];
-    if (images.length) {
+    if (images && images.length) {
         images.map((item)=>{
             var img_url = item.match(/http.*?(png|jpg)/)[0];
             var new_imgs = `[img]${img_url}[/img]`;
