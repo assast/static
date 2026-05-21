@@ -1733,6 +1733,76 @@ function pix_send_images(urls) {
     });
 };
 
+// cmct.xyz 图床上传：URL → 下载 blob → 以文件流形式 POST 上传 → 拿到直链
+function cmct_upload_one(imgUrl, apiKey) {
+    return new Promise(function(resolve, reject){
+        // step 1: GET 原图为 blob
+        GM_xmlhttpRequest({
+            method: 'GET',
+            url: imgUrl,
+            responseType: 'blob',
+            onload: function(res){
+                if (res.status !== 200) { reject('下载失败 ' + res.status); return; }
+                var blob = res.response;
+                // step 2: 以 multipart 形式 POST 到 cmct
+                var fileName = (imgUrl.split('/').pop() || 'upload.png').split('?')[0];
+                var fd = new FormData();
+                fd.append('source', blob, fileName);
+                fd.append('key', apiKey);
+                fd.append('format', 'txt');
+                GM_xmlhttpRequest({
+                    method: 'POST',
+                    url: 'https://cmct.xyz/api/1/upload',
+                    data: fd,
+                    onload: function(r2){
+                        if (r2.status === 200 && r2.responseText && r2.responseText.match(/^https?:\/\//)) {
+                            resolve(r2.responseText.trim());
+                        } else {
+                            reject('上传失败 ' + r2.status + ' ' + (r2.responseText||'').slice(0,200));
+                        }
+                    },
+                    onerror: function(err){ reject(err); }
+                });
+            },
+            onerror: function(err){ reject(err); }
+        });
+    });
+}
+
+// cmct 批量：返回直链数组（不带 [img] 包裹，cmct.xyz 站点内填写直接用）
+function cmct_send_images(urls, apiKey) {
+    return Promise.all(urls.map(function(u){ return cmct_upload_one(u, apiKey); }))
+        .then(function(directUrls){
+            return directUrls;
+        });
+}
+
+// HDB 缩略图（t.hdbits.org/xxx.jpg）对应的原图扩展可能是 png 或 jpg。
+// 此函数对文本里所有 i.hdbits.org/xxx.jpg 异步 HEAD 探测：若同名 png 存在则替换为 png，否则保持 jpg。
+function fix_hdbits_ext_in_text(text) {
+    if (!text) return Promise.resolve(text);
+    var matches = text.match(/https?:\/\/i\.hdbits\.org\/[A-Za-z0-9]+\.jpg/ig) || [];
+    if (!matches.length) return Promise.resolve(text);
+    var unique = Array.from(new Set(matches));
+    return Promise.all(unique.map(function(url){
+        var pngUrl = url.replace(/\.jpg$/i, '.png');
+        return new Promise(function(resolve){
+            GM_xmlhttpRequest({
+                method: 'HEAD',
+                url: pngUrl,
+                onload: function(res){ resolve(res.status === 200 ? [url, pngUrl] : [url, url]); },
+                onerror: function(){ resolve([url, url]); },
+                ontimeout: function(){ resolve([url, url]); }
+            });
+        });
+    })).then(function(pairs){
+        pairs.forEach(function(p){
+            if (p[0] !== p[1]) text = text.split(p[0]).join(p[1]);
+        });
+        return text;
+    });
+}
+
 //添加搜索框架，可以自行添加或者注释站点
 function add_search_urls(container, imdbid, imdbno, search_name, mode) {
     var div_style = 'align="center" style="border: 1px solid blue;"';
@@ -2904,6 +2974,8 @@ function get_full_size_picture_urls(raw_info, imgs, container, need_img_label, c
                 item = item.replace(/th.png/, 'png').replace(/md.png/, 'png').replace('/t/', '/i/');
             } else if (item.match(/tu.totheglory.im/)) {
                 item = item.replace(/_thumb.png/, '.png');
+            } else if (item.match(/t\.hdbits\.org/)) {
+                item = item.replace('t.hdbits.org', 'i.hdbits.org');
             }
             if (need_img_label) {
                 img_info += '\n' + `[img]${item}[/img]`;
@@ -7586,6 +7658,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
         $('#dealimg').append(`<input type="button" id="send_pixhost" value="转pixhost" style="margin-bottom:5px;margin-left:5px">`);
         $('#dealimg').append(`<input type="button" id="send_imgbox" value="转imgbox" style="margin-bottom:5px;margin-left:5px">`);
         $('#dealimg').append(`<input type="button" id="send_hdbits" value="转HDBits" style="margin-bottom:5px;margin-left:5px">`);
+        $('#dealimg').append(`<input type="button" id="send_cmct" value="转CMCT" style="margin-bottom:5px;margin-left:5px">`);
         $('#dealimg').append(`<input type="button" id="get_imgbb" value="imgbb源图" style="margin-bottom:5px;margin-left:5px">`);
         $('#dealimg').append(`<input type="button" id="change" value="字符串替换" style="margin-bottom:5px;margin-left:5px">`);
         $('#dealimg').append(`<input type="text" style="width: 50px; text-align:center; margin-left: 5px" id="img_source" />--<input type="text" style="width: 50px; text-align:center; margin-right: 5px" id="img_dest" /><br>`);
@@ -7594,7 +7667,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
         $('#dealimg').append(`<input type="button" id="enter2space" value="换行->空格" style="margin-bottom:5px;margin-right:5px">`);
         $('#dealimg').append(`<input type="button" id="get_encode" value="图片提取" style="margin-bottom:5px;margin-right:5px">`);
         $('#dealimg').append(`从第<input type="text" style="width: 30px; text-align:center; margin-left: 5px; margin-right:5px" id="start" />张开始每隔<input type="text" style="width: 30px; text-align:center; margin-left: 5px; margin-right:5px" id="step" />张获取其中第<input type="text" style="width: 30px; text-align:center; margin-left: 5px;margin-right:5px" id="number" />张。<br>`);
-        $('#dealimg').append(`<font color="red">获取大图目前支持imgbox，pixhost，pter，ttg，瓷器，img4k，其余的可以尝试字符串替换。</font><a href="https://github.com/tomorrow505/auto_feed_js/wiki/%E5%9B%BE%E7%89%87%E5%A4%84%E7%90%86" target="_blank" style="color:blue">→→点我查看教程←←</a><br>`);
+        $('#dealimg').append(`<font color="red">获取大图目前支持imgbox，pixhost，pter，ttg，瓷器，img4k，HDBits，其余的可以尝试字符串替换。</font><a href="https://github.com/tomorrow505/auto_feed_js/wiki/%E5%9B%BE%E7%89%87%E5%A4%84%E7%90%86" target="_blank" style="color:blue">→→点我查看教程←←</a><br>`);
         $('#dealimg').append(`<textarea id="picture" style="width:700px" rows="15"></textarea>`);
         $('#dealimg').append(`<div id="imgs_to_show" style="display: none;"></div><br>`);
         $('#dealimg').append(`<div>结果展示 <a href="#" id="up_text" style="color:red;">↑将结果移入输入框</a><br><textarea id="result" style="width:700px;" rows="15"></textarea></div>`);
@@ -7633,6 +7706,10 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
         $('#getsource').click((e)=>{
             var origin_str = $('#picture').val();
             get_full_size_picture_urls(null, origin_str, $('#result'), true);
+            // HDB 缩略图统一是 jpg，但原图可能是 png 或 jpg，异步 HEAD 探测后回写
+            fix_hdbits_ext_in_text($('#result').val()).then(function(fixed){
+                $('#result').val(fixed);
+            });
         });
 
         $('#enter2space').click((e)=>{
@@ -7663,17 +7740,18 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
             var $temp = $('<textarea></textarea>');
             get_full_size_picture_urls(null, origin_str, $temp, true);
             var converted = $temp.val() || origin_str;
-            // 再走 toSSD 的直链提取逻辑
-            images = converted.match(/\[img.*?\]http[^\[\]]*?(jpg|png)\[\/img\]/ig)
-
-            resultImgs = [];
-            if (images && images.length) {
-                images.map((item)=>{
-                    var img_url = item.match(/http.*?(png|jpg)/)[0];
-                    resultImgs.push(img_url);
-                })
-                $('#result').val(resultImgs.join("\n"));
-            }
+            // HDB 链接异步探测真实扩展名（png/jpg）后，再走 toSSD 的直链提取
+            fix_hdbits_ext_in_text(converted).then(function(fixed){
+                var images = fixed.match(/\[img.*?\]http[^\[\]]*?(jpg|png)\[\/img\]/ig);
+                var resultImgs = [];
+                if (images && images.length) {
+                    images.forEach(function(item){
+                        var img_url = item.match(/http.*?(png|jpg)/)[0];
+                        resultImgs.push(img_url);
+                    });
+                    $('#result').val(resultImgs.join("\n"));
+                }
+            });
         })
         $('#del_img_hdt_assast').click((e)=>{
             var origin_str = $('#picture').val();
@@ -7783,6 +7861,39 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
             } else {
                 alert('缺少截图');
             }
+        });
+
+        $('#send_cmct').click((e)=>{
+            var origin_str = $('#picture').val();
+            origin_str = ensure_img_tags(origin_str);   // 兼容“直接链接”输入
+            var matched = origin_str.match(/\[img\]http[^\[\]]*?(jpg|png|webp|jpeg)/ig);
+            if (!matched || !matched.length) { alert('请输入图片地址！！'); return; }
+            var images = matched.map(function(item){ return item.replace(/\[.*?\]/g, ''); });
+
+            // —— 第一次使用：弹窗提示输入 API Key ——
+            var apiKey = GM_getValue('cmct_api_key', '');
+            if (!apiKey) {
+                apiKey = prompt('请输入 cmct.xyz 的 API Key（chv_ 开头）：\n填一次即可，会保存到本地，下次自动使用。', '');
+                if (!apiKey) { return; }              // 用户取消
+                apiKey = apiKey.trim();
+                GM_setValue('cmct_api_key', apiKey);   // 持久化
+            }
+
+            cmct_send_images(images, apiKey)
+                .then(function(new_urls){
+                    $('#result').val(new_urls.join('\n'));
+                    alert('转存成功！');
+                })
+                .catch(function(err){
+                    console.log(err);
+                    // 401/403 视为 key 失效，清掉本地缓存
+                    if (String(err).match(/上传失败 (401|403)/)) {
+                        GM_setValue('cmct_api_key', '');
+                        alert('API Key 可能失效，已清空。下次点击会重新提示输入。\n详细：' + err);
+                    } else {
+                        alert('转存失败：' + err);
+                    }
+                });
         });
 
         $('#change').click((e)=>{
@@ -9447,7 +9558,12 @@ function auto_feed() {
             }
 
             if ($('.nexus-media-info-raw').length || $('#kmediainfo').length) {
-                var mediainfo = $('.nexus-media-info-raw').text() ? $('.nexus-media-info-raw').text(): $('#kmediainfo').text();
+                var mediainfo;
+                if ($('.nexus-media-info-raw pre').length) {
+                    mediainfo = $('.nexus-media-info-raw pre').text();
+                } else {
+                    mediainfo = $('.nexus-media-info-raw').text() ? $('.nexus-media-info-raw').text(): $('#kmediainfo').text();
+                }
                 if ($('.spoiler-content').length) {
                     mediainfo = $('.spoiler-content').text();
                 }
@@ -23104,8 +23220,37 @@ function auto_feed() {
             }
             addTorrent(raw_info.torrent_url, raw_info.torrent_name, forward_site, announce);
 
+            // assast 绕开 BLU/Aither 新版 Alpine.js 的 x-bind:value="...? '' : ''" 强制清空
+            // 通过 cloneNode + 删除 x-/:/@/wire: 属性,让新节点脱离 Alpine 的 effect 系统
+            function defuseAlpineInput(idOrEl) {
+                var el = (typeof idOrEl === 'string') ? document.getElementById(idOrEl) : idOrEl;
+                if (!el || !el.parentNode) return null;
+                var clone = el.cloneNode(true);
+                Array.from(clone.attributes).forEach(function(a) {
+                    if (a.name.indexOf('x-') === 0 || a.name.indexOf(':') === 0 ||
+                        a.name.indexOf('@') === 0 || a.name.indexOf('wire:') === 0) {
+                        clone.removeAttribute(a.name);
+                    }
+                });
+                el.parentNode.replaceChild(clone, el);
+                return clone;
+            }
+            function setAlpineSelect(idOrEl, value) {
+                var el = (typeof idOrEl === 'string') ? document.getElementById(idOrEl) : idOrEl;
+                if (!el) return;
+                el.value = String(value);
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            if (forward_site == 'BLU' || forward_site == 'Aither') {
+                ['auto_tmdb_movie', 'auto_tmdb_tv', 'autoimdb', 'autotvdb', 'automal'].forEach(defuseAlpineInput);
+            }
+            if (forward_site == 'Monika') {
+                ['tmdb_id', 'mal_id', 'bgm_id'].forEach(defuseAlpineInput);
+            }
+
             if (raw_info.type == '剧集' || raw_info.type == '综艺' || raw_info.type == '纪录') {
-                $('#autocat').val("2");
+                setAlpineSelect('autocat', '2');
                 try { $('#season_number').val(parseInt(raw_info.name.match(/S(\d+)/i)[1])) } catch (err) {$('#season_number').val("1")}
                 try { $('#episode_number').val(parseInt(raw_info.name.match(/E(\d+)/i)[1])) } catch (err) {}
             }
@@ -23234,6 +23379,38 @@ function auto_feed() {
                 if (raw_info.name.match(/webrip/i)) {
                     source_box.value = 5;
                 }
+            } else if (forward_site == 'Aither') {
+                // assast Aither type 值: 1=Full Disc, 2=Remux, 3=Encode, 4=WEB-DL, 5=WEBRip, 6=HDTV, 7=Other
+                // 必须用 setAlpineSelect 派发 change,Alpine 才会更新 reactive type 状态,
+                // 进而通过 x-show="types[type].name === 'Full Disc'" 显示 distributor/region/BDInfo
+                var aitherTypeVal = '4';
+                switch(raw_info.medium_sel){
+                    case 'UHD': case 'Blu-ray': aitherTypeVal = '1'; break;
+                    case 'Remux': aitherTypeVal = '2'; break;
+                    case 'Encode': aitherTypeVal = '3'; break;
+                    case 'WEB-DL': aitherTypeVal = '4'; break;
+                    case 'HDTV':  aitherTypeVal = '6'; break;
+                }
+                if (raw_info.name.match(/webrip/i)) aitherTypeVal = '5';
+                setAlpineSelect(source_box, aitherTypeVal);
+
+                // assast Aither Meta info: DV / HDR / HDR10+ 自动勾选
+                // 探测来源:mediainfo + descr + name,任一命中即勾选;HDR10+ 与 HDR 互斥(HDR10+ 优先),DV 独立可叠加
+                try {
+                    var aitherProbeMi = '';
+                    try { aitherProbeMi = get_mediainfo_picture_from_descr(raw_info.descr).mediainfo || ''; } catch(e){}
+                    var aitherProbe = aitherProbeMi + '\n' + (raw_info.descr || '') + '\n' + (raw_info.name || '');
+                    var aitherHasDV     = /Dolby\s*Vision|\bDoVi\b|\bDV\b(?=[\s\.\-_])/i.test(aitherProbe);
+                    var aitherHasHDR10p = /HDR10\+|HDR10Plus|HDR10P(?![a-zA-Z])/i.test(aitherProbe);
+                    var aitherHasHDR    = /\bHDR\b|HDR10|BT\.?2020|SMPTE\s*ST\s*2086|MaxCLL|MaxFALL/i.test(aitherProbe);
+                    function clickAitherMeta(id) {
+                        var el = document.getElementById(id);
+                        if (el && !el.checked) el.click();
+                    }
+                    if (aitherHasDV) clickAitherMeta('is_dv');
+                    if (aitherHasHDR10p) clickAitherMeta('is_hdr10p');
+                    else if (aitherHasHDR) clickAitherMeta('is_hdr');
+                } catch (err) {}
             } else {
                 switch(raw_info.medium_sel){
                     case 'UHD': source_box.options[1].selected = true; break;
@@ -23355,12 +23532,17 @@ function auto_feed() {
                         });
                         $('.fill_number').css({'backgroundColor': 'rgb(70, 77, 96)'});
                         $('.fill_number').click(function(){
-                            $('#autotmdb').val($(this).attr('name'));
+                            var v = $(this).attr('name');
+                            // assast 同时更新新旧 TMDB ID 选择器,兼容 BLU/Aither (movie/tv 拆分) 和老 UNIT3D (#autotmdb)
+                            $('#autotmdb').val(v);
+                            $('#auto_tmdb_movie').val(v);
+                            $('#auto_tmdb_tv').val(v);
+                            $('#tmdb_id').val(v);
                             $table.slideUp(500);
                             window.scrollTo(0, 500);
                         });
 
-                        $('#autotmdb').change(function(){
+                        $('#autotmdb, #auto_tmdb_movie, #auto_tmdb_tv, #tmdb_id').change(function(){
                             if (!$(this).val()){
                                 $table.slideDown(1000);
                             }
@@ -23391,18 +23573,21 @@ function auto_feed() {
                 var imdb_id = raw_info.url.match(/tt\d+/)[0];
                 var search_url = `https://api.themoviedb.org/3/find/${imdb_id}?api_key=${used_tmdb_key}&external_source=imdb_id&include_adult=false&language=zh-CN`;
                 getJson(search_url, null, function(data){
-                    console.log(data)
-                    if (data.movie_results.length) {
-                        $('#auto_tmdb_movie').val(data.movie_results[0].id);
-                        $('#autotmdb').val(data.movie_results[0].id);
-                    } else if (data.tv_results.length) {
-                        $('#auto_tmdb_movie').val(data.tv_results[0].id);
-                        $('#autotmdb').val(data.movie_results[0].id);
-                    } else if (data.tv_episode_results.length) {
-                        $('#auto_tmdb_movie').val(data.tv_episode_results[0].show_id);
-                        $('#autotmdb').val(data.movie_results[0].id);
+                    console.log(data);
+                    var tmdbId = '';
+                    if (data.movie_results && data.movie_results.length) {
+                        tmdbId = data.movie_results[0].id;
+                    } else if (data.tv_results && data.tv_results.length) {
+                        tmdbId = data.tv_results[0].id;
+                    } else if (data.tv_episode_results && data.tv_episode_results.length) {
+                        tmdbId = data.tv_episode_results[0].show_id;
                     }
-                    if (!$('#auto_tmdb_movie').val() && !$('#autotmdb').val()) {
+                    if (tmdbId) {
+                        // assast 同时填 movie 和 tv 两个字段,后端按 category 自动取对应那个
+                        $('#auto_tmdb_movie').val(tmdbId);
+                        $('#auto_tmdb_tv').val(tmdbId);
+                        $('#tmdb_id').val(tmdbId);
+                    } else if (search_name && used_tmdb_key) {
                         search_by_name(search_name);
                     }
                 });
@@ -23447,9 +23632,17 @@ function auto_feed() {
                     // if (raw_info.name.match(/DV HDR/i)) {
                     //     pic_info = '[CODE]This release contains a derived Dolby Vision profile 8 layer. Comparisons not required as DV and HDR are from same provider.[/CODE]\n\n' + pic_info;
                     // }
-                    $('#upload-form-mediainfo').parent().before(`<div style="margin-bottom:5px"><a id="img350" style="margin-left:5px" href="#">IMG350</a>
-                        <font style="margin-left:5px" color="red">选中要转换的bbcode图片部分点击即可。</font></div>
-                    `);
+                    // assast 新版 BLU/Aither 把 BBCode 描述编辑器放到 #bbcode-input 容器里,
+                    // 按钮要紧贴描述框下方,所以注入到 #bbcode-input 之后(.after);老版本回退到原选择器
+                    if ($('#bbcode-input').length) {
+                        $('#bbcode-input').after(`<div style="margin-bottom:5px"><a id="img350" style="margin-left:5px" href="#">IMG350</a>
+                            <font style="margin-left:5px" color="red">选中要转换的bbcode图片部分点击即可。</font></div>
+                        `);
+                    } else {
+                        $('#upload-form-mediainfo').parent().before(`<div style="margin-bottom:5px"><a id="img350" style="margin-left:5px" href="#">IMG350</a>
+                            <font style="margin-left:5px" color="red">选中要转换的bbcode图片部分点击即可。</font></div>
+                        `);
+                    }
                     $('#img350').click(function(e){
                         e.preventDefault();
                         var text = $('#bbcode-description').val();
@@ -28853,6 +29046,8 @@ function auto_feed() {
                     item = item.replace(/th.png/, 'png').replace(/md.png/, 'png').replace('/t/', '/i/');
                 } else if (item.match(/tu.totheglory.im/)) {
                     item = item.replace(/_thumb.png/, '.png');
+                } else if (item.match(/t\.hdbits\.org/)) {
+                    item = item.replace('t.hdbits.org', 'i.hdbits.org');
                 }
                 img_info = `[img]${item}[/img]`;
                 raw_info.descr = raw_info.descr.replace(img_urls[i], img_info);
