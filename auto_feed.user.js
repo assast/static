@@ -23518,14 +23518,14 @@ function auto_feed() {
                                 $td1 = $(`<td>${e.first_air_date}</td>`);
                                 $td2 = $(`<td>${e.original_name}</td>`);
                                 $td3 = $(`<td><a href="https://www.themoviedb.org/TV/${e.id}" target="_blank">${e.name}</a></td>`);
-                                $td5 = $(`<td><input type="button" class="fill_number" name=${e.id} value="USE"></td>`);
+                                $td5 = $(`<td><input type="button" class="fill_number" data-mediatype="tv" name=${e.id} value="USE"></td>`);
                                 $tr.append($td0); $tr.append($td1); $tr.append($td2); $tr.append($td3); $tr.append($td5);
                             } else {
                                 $td0 = $(`<td><img src="https://image.tmdb.org/t/p/w300_and_h450_bestv2${e.poster_path}"; style="width: 80px; height: 120px;"></td>`);
                                 $td1 = $(`<td>${e.release_date}</td>`);
                                 $td2 = $(`<td>${e.original_title}</td>`);
                                 $td3 = $(`<td><a href="https://www.themoviedb.org/movie/${e.id}" target="_blank">${e.title}</a></td>`);
-                                $td5 = $(`<td><input type="button" class="fill_number" name=${e.id} value="USE"></td>`);
+                                $td5 = $(`<td><input type="button" class="fill_number" data-mediatype="movie" name=${e.id} value="USE"></td>`);
                                 $tr.append($td0); $tr.append($td1); $tr.append($td2); $tr.append($td3); $tr.append($td5);
                             }
                             $table.append($tr);
@@ -23533,11 +23533,17 @@ function auto_feed() {
                         $('.fill_number').css({'backgroundColor': 'rgb(70, 77, 96)'});
                         $('.fill_number').click(function(){
                             var v = $(this).attr('name');
-                            // assast 同时更新新旧 TMDB ID 选择器,兼容 BLU/Aither (movie/tv 拆分) 和老 UNIT3D (#autotmdb)
+                            var mt = $(this).attr('data-mediatype');
+                            // assast: BLU/Aither 的 movie/tv 是两个独立字段,后端各自按类型校验,交叉填会把电影 ID 当 TV ID 去查从而验证失败
                             $('#autotmdb').val(v);
-                            $('#auto_tmdb_movie').val(v);
-                            $('#auto_tmdb_tv').val(v);
                             $('#tmdb_id').val(v);
+                            if (mt === 'tv') {
+                                $('#auto_tmdb_tv').val(v);
+                                $('#auto_tmdb_movie').val('');
+                            } else {
+                                $('#auto_tmdb_movie').val(v);
+                                $('#auto_tmdb_tv').val('');
+                            }
                             $table.slideUp(500);
                             window.scrollTo(0, 500);
                         });
@@ -23575,17 +23581,26 @@ function auto_feed() {
                 getJson(search_url, null, function(data){
                     console.log(data);
                     var tmdbId = '';
+                    var tmdbType = '';
                     if (data.movie_results && data.movie_results.length) {
                         tmdbId = data.movie_results[0].id;
+                        tmdbType = 'movie';
                     } else if (data.tv_results && data.tv_results.length) {
                         tmdbId = data.tv_results[0].id;
+                        tmdbType = 'tv';
                     } else if (data.tv_episode_results && data.tv_episode_results.length) {
                         tmdbId = data.tv_episode_results[0].show_id;
+                        tmdbType = 'tv';
                     }
                     if (tmdbId) {
-                        // assast 同时填 movie 和 tv 两个字段,后端按 category 自动取对应那个
-                        $('#auto_tmdb_movie').val(tmdbId);
-                        $('#auto_tmdb_tv').val(tmdbId);
+                        // assast: BLU/Aither 的 movie/tv 是两个独立字段,后端各自按类型校验,交叉填会把电影 ID 当 TV ID 去查从而验证失败
+                        if (tmdbType === 'tv') {
+                            $('#auto_tmdb_tv').val(tmdbId);
+                            $('#auto_tmdb_movie').val('');
+                        } else {
+                            $('#auto_tmdb_movie').val(tmdbId);
+                            $('#auto_tmdb_tv').val('');
+                        }
                         $('#tmdb_id').val(tmdbId);
                     } else if (search_name && used_tmdb_key) {
                         search_by_name(search_name);
