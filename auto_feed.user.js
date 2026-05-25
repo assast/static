@@ -2561,6 +2561,8 @@ String.prototype.codec_sel = function() { //编码
         result = 'VP9';
     } else if (result.match(/DIVX/i)) {
         result = 'DIVX';
+    } else if (result.match(/(AV1)/i)) {
+        result = 'AV1';
     } else {
         result = '';
     }
@@ -9388,7 +9390,23 @@ function auto_feed() {
 
             if (origin_site != 'BYR' && origin_site != '影'){
                 for (i = 0; i < title.childNodes.length; i++) {
-                    raw_info.name = raw_info.name + title.childNodes[i].textContent;
+                    var _node = title.childNodes[i];
+                    // 遇到 <br> 即停止拼接 — PT 标题正文是单行,<br> 之后通常是其他脚本追加的内容
+                    // (例如 PTer 的标题高亮/比对脚本会在 <br> 后塞一个带颜色 span 的复制版标题)
+                    if (_node.nodeType === 1 && _node.tagName && _node.tagName.toUpperCase() === 'BR') {
+                        break;
+                    }
+                    // 跳过其他脚本(如 HHWEB 文件名助手)往 #top 里塞的灰色文件名 span
+                    // 形如 <span style="color: darkgray; font-size: 1rem;">xxx.mkv</span>
+                    if (_node.nodeType === 1) {
+                        var _style = (_node.getAttribute && _node.getAttribute('style')) || '';
+                        var _txt = (_node.textContent || '').trim();
+                        if (/color\s*:\s*(darkgray|gray|grey|#?[a-f0-9]{3,6})/i.test(_style)
+                            && /\.(mkv|mp4|ts|m2ts|iso|avi|wmv|flv|mov|rmvb|mka|mpls)$/i.test(_txt)) {
+                            continue;
+                        }
+                    }
+                    raw_info.name = raw_info.name + _node.textContent;
                 }
             }
             if (origin_site == 'TTG') {
@@ -17581,6 +17599,7 @@ function auto_feed() {
                 case 'AAC': audiocodec_box.val(5); break;
                 case 'Flac': audiocodec_box.val(7); break;
                 case 'APE': audiocodec_box.val(8); break;
+                case 'OPUS': audiocodec_box.val(12); break;
                 case 'WAV': audiocodec_box.val(9);
             }
             var standard_box = $('select[name="standard_sel"]');
@@ -18257,6 +18276,8 @@ function auto_feed() {
                     $("select[name='codec_sel']").val('16'); break;
                 case 'MPEG-2': case 'MPEG-4':
                     $("select[name='codec_sel']").val('15'); break;
+                case 'AV1':
+                    $("select[name='codec_sel']").val('19'); break;
                 case '':
                     $("select[name='codec_sel']").val('18');
             }
@@ -18285,6 +18306,8 @@ function auto_feed() {
                     $("select[name='audiocodec_sel']").val('13'); break;
                 case 'APE':
                     $("select[name='audiocodec_sel']").val('12'); break;
+                case 'OPUS':
+                    $("select[name='audiocodec_sel']").val('33'); break;
                 case 'WAV':
                     $("select[name='audiocodec_sel']").val('11');
             }
@@ -18375,7 +18398,8 @@ function auto_feed() {
                 case 'H265': case 'X265': codec_box.val(6); break;
                 case 'H264': case 'X264': codec_box.val(1); break;
                 case 'VC-1': codec_box.val(2); break;
-                case 'MPEG-2': case 'MPEG-4': codec_box.val(4);
+                case 'MPEG-2': case 'MPEG-4': codec_box.val(4); break;
+                case 'AV1': codec_box.val(7); break;
             }
 
             //音频编码
@@ -18411,6 +18435,7 @@ function auto_feed() {
                     case 'AAC': audiocodec_box.val(6); break;
                     case 'Flac': audiocodec_box.val(1); break;
                     case 'APE': audiocodec_box.val(2); break;
+                    case 'OPUS': audiocodec_box.val(27); break;
                     case 'WAV': audiocodec_box.val(22); break;
                     case 'MP3': audiocodec_box.val(23); break;
                     case 'M4A': audiocodec_box.val(24);
@@ -18809,7 +18834,7 @@ function auto_feed() {
                 }
 
                 var codec_box = document.getElementsByName('codec_sel')[0];
-                var codec_dict = { 'H264': 1, 'X265': 2, 'X264': 1, 'H265': 2, 'VC-1': 5, 'MPEG-2': 4 };
+                var codec_dict = { 'H264': 1, 'X265': 2, 'X264': 1, 'H265': 2, 'VC-1': 5, 'MPEG-2': 4, 'AV1': 6 };
                 if (codec_dict.hasOwnProperty(raw_info.codec_sel)) {
                     var index = codec_dict[raw_info.codec_sel];
                     codec_box.options[index].selected = true;
