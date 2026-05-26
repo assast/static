@@ -97,7 +97,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      2.9.7
+// @version      2.9.8
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -29891,7 +29891,7 @@ function auto_feed() {
             }
 
             var codec_box = $('select[name="codec_sel[4]"]');
-            var codec_dict = { "H265": 8, 'X265': 8, 'H264': 9, 'X264': 9, 'VC-1': 12, 'MPEG-4': 13, 'MPEG-2': 13};
+            var codec_dict = { "H265": 8, 'X265': 8, 'H264': 9, 'X264': 9, 'VC-1': 12, 'MPEG-4': 13, 'MPEG-2': 13, 'AV1': 15};
             codec_box.val(5);
             if (codec_dict.hasOwnProperty(raw_info.codec_sel)) {
                 var index = codec_dict[raw_info.codec_sel];
@@ -29900,7 +29900,7 @@ function auto_feed() {
 
             var audiocodec_box = $('select[name="audiocodec_sel[4]"]');
             var audiocodec_dict = {
-                'DTS-HD': 3, 'DTS-HDMA:X 7.1': 23, 'DTS-HDMA': 10, 'TrueHD': 9, 'DTS-HDHR': 10,'MP3': 21, 'DTS': 3, 'AC3': 13, 'AAC': 6, 'Flac': 1, 'LPCM': 15
+                'DTS-HD': 3, 'DTS-HDMA:X 7.1': 23, 'DTS-HDMA': 10, 'TrueHD': 9, 'DTS-HDHR': 10,'MP3': 21, 'DTS': 3, 'AC3': 13, 'AAC': 6, 'Flac': 1, 'LPCM': 15, 'OPUS': 24
             };
             audiocodec_box.val(14);
             if (audiocodec_dict.hasOwnProperty(raw_info.audiocodec_sel)) {
