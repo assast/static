@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OpenList Quick Copy
 // @namespace    dream.openlist.quickcopy
-// @version      0.2.0
+// @version      0.2.1
 // @description  在 OpenList 中一键复制选中文件到预设目录（支持多实例）
 // @author       playboy
 // @match        *://*/*
@@ -12,9 +12,13 @@
 // ==/UserScript==
 
 // 脚本现在使用 @match *://*/* 全局匹配，会自动检测当前页面是否为 OpenList。
-// 检测逻辑：查找 OpenList 特有的 DOM 元素（.list-item / .viselect-item）或 localStorage token。
+// 检测逻辑（严格 DOM 检测，不会误判 B站/其他网站）：
+//   1. 当前主机在已验证白名单中 → 直接挂载
+//   2. 页面有 OpenList 文件列表项（.list-item / .viselect-item）→ 判定为 OpenList
+//   3. 页面有 OpenList 登录表单 + Hope UI 框架标记 → 判定为 OpenList
 // 非 OpenList 页面会在 8 秒超时后自动退出，不会持续占用资源。
-// 新增 OpenList 实例无需修改脚本，直接访问即可自动识别并挂载 UI。
+// 首次通过验证的主机会自动加入白名单，后续访问秒挂载。
+// 新增 OpenList 实例无需修改脚本，直接访问即可自动识别。
 
 (function () {
   'use strict';
@@ -73,14 +77,39 @@
     return normalizePath(decodeURIComponent(window.location.pathname || '/'));
   }
 
-  function isOpenListPage() {
-    // 检查 DOM 特征
-    if (document.querySelector(SELECTORS.openListMarker)) return true;
-    // 检查 localStorage 是否有 OpenList 的 token（登录后会有）
+  // 已验证的 OpenList 主机白名单（GM_setValue 持久化，首次验证通过后缓存）
+  function getVerifiedHosts() {
     try {
-      const token = localStorage.getItem('token');
-      if (token && typeof token === 'string' && token.length > 20) return true;
-    } catch (e) {}
+      const raw = GM_getValue('verifiedHosts', '[]');
+      const arr = typeof raw === 'string' ? JSON.parse(raw) : (Array.isArray(raw) ? raw : []);
+      return new Set(arr);
+    } catch (e) { return new Set(); }
+  }
+
+  function addVerifiedHost(host) {
+    const s = getVerifiedHosts();
+    s.add(host);
+    GM_setValue('verifiedHosts', JSON.stringify([...s]));
+  }
+
+  function isOpenListPage() {
+    // 1. 当前主机之前已验证过 → 秒过
+    if (getVerifiedHosts().has(CURRENT_HOST)) return true;
+
+    // 2. DOM 特征检测：查找 OpenList/AList 特有的文件列表项。
+    //    只用 DOM，绝不用 localStorage.token（B站等网站也有 JWT token，会造成误判）
+    //    .list-item 匹配 OpenList 文件列表行；.viselect-item 匹配备选结构
+    if (document.querySelector(SELECTORS.openListMarker)) return true;
+
+    // 3. 检查 OpenList 登录页特征（未登录但页面确实是 OpenList）
+    //    OpenList 登录页有用户名+密码的登录表单
+    const loginInputs = document.querySelectorAll('input[name="username"], input[type="text"][placeholder*="用户"], input[type="password"][placeholder*="密码"]');
+    if (loginInputs.length >= 2) {
+      // 确认不是在随便一个表单上——检查页面标题或特定框架标记
+      const hopeUi = document.querySelector('.hope-c-PJLV, [class*="hope-ui"], [class*="hope-c-"]');
+      if (hopeUi) return true;
+    }
+
     return false;
   }
 
@@ -549,6 +578,11 @@
     const fabContainer = shadowRoot.querySelector('.fab-container');
     restoreFabPosition(fabContainer);
     setupDrag(fabContainer);
+
+    // 首次验证通过后缓存主机名，下次不用再检测 DOM
+    if (!getVerifiedHosts().has(CURRENT_HOST)) {
+      addVerifiedHost(CURRENT_HOST);
+    }
   }
 
   // ========== FAB 拖动 + 位置记忆 ==========
