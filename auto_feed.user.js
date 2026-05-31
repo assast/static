@@ -97,7 +97,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      2.9.8
+// @version      2.9.9
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -2247,10 +2247,10 @@ function walk_ptp(n) {
 
 function deal_img_350(pic_info) {
 
-    var imgs = pic_info.match(/\[img\].*?(jpg|png).*?\[\/img\]/ig);
+    var imgs = pic_info.match(/\[img\].*?(jpg|png|\.gif(?![a-zA-Z0-9])).*?\[\/img\]/ig);
     if (imgs) {
         imgs.map((item)=>{
-            var img_url = item.match(/http.*?(png|jpg)/)[0];
+            var img_url = item.match(/http.*?(png|jpg|\.gif(?![a-zA-Z0-9]))/)[0];
             // assast 外站要缩略图 不知道为啥要限定ptpimg 这里去掉
             // if (img_url.match(/ptpimg/)) {
             var new_imgs = `[url=${img_url}]${item.replace('[img]', '[img=350x350]').replace('[IMG]', '[IMG=350x350]')}[/url]`;
@@ -2264,10 +2264,10 @@ function deal_img_350(pic_info) {
 function deal_img_350_ptpimg(pic_info) {
     // assast 不知道为啥ptpimg单独写，统一的试试
     // return deal_img_350(pic_info);
-    var imgs = pic_info.match(/\[img\].*?(jpg|png).*?\[\/img\]/g);
+    var imgs = pic_info.match(/\[img\].*?(jpg|png|\.gif(?![a-zA-Z0-9])).*?\[\/img\]/g);
     if (imgs) {
         imgs.map((item)=>{
-            var img_url = item.match(/http.*?(png|jpg)/)[0];
+            var img_url = item.match(/http.*?(png|jpg|\.gif(?![a-zA-Z0-9]))/)[0];
             if (img_url.match(/ptpimg.me/)) {
                 var new_imgs = `[url=${img_url}]${item.replace('[img]', '[img=350x350]')}[/url]`;
                 pic_info = pic_info.replace(item, new_imgs);
@@ -7675,7 +7675,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
         $('#dealimg').append(`<div>结果展示 <a href="#" id="up_text" style="color:red;">↑将结果移入输入框</a><br><textarea id="result" style="width:700px;" rows="15"></textarea></div>`);
 
         var descr = GM_getValue('descr') === undefined ? '': GM_getValue('descr');
-        var imgs_to_deal = descr.match(/(\[url=.*?\])?\[img\].*?(png|jpg|webp)\[\/img\](\[\/url\])?/ig);
+        var imgs_to_deal = descr.match(/(\[url=.*?\])?\[img\].*?(png|jpg|webp|\.gif(?![a-zA-Z0-9]))\[\/img\](\[\/url\])?/ig);
         try {
             if (imgs_to_deal) {
                 $('#picture').val(imgs_to_deal.join('\n'));
@@ -7744,11 +7744,11 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
             var converted = $temp.val() || origin_str;
             // HDB 链接异步探测真实扩展名（png/jpg）后，再走 toSSD 的直链提取
             fix_hdbits_ext_in_text(converted).then(function(fixed){
-                var images = fixed.match(/\[img.*?\]http[^\[\]]*?(jpg|png)\[\/img\]/ig);
+                var images = fixed.match(/\[img.*?\]http[^\[\]]*?(jpg|png|\.gif(?![a-zA-Z0-9]))\[\/img\]/ig);
                 var resultImgs = [];
                 if (images && images.length) {
                     images.forEach(function(item){
-                        var img_url = item.match(/http.*?(png|jpg)/)[0];
+                        var img_url = item.match(/http.*?(png|jpg|\.gif(?![a-zA-Z0-9]))/)[0];
                         resultImgs.push(img_url);
                     });
                     $('#result').val(resultImgs.join("\n"));
@@ -7758,12 +7758,12 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
         $('#del_img_hdt_assast').click((e)=>{
             var origin_str = $('#picture').val();
             origin_str = ensure_img_tags(origin_str);
-            images = origin_str.match(/\[img.*?\]http[^\[\]]*?(jpg|png)\[\/img\]/ig)
+            images = origin_str.match(/\[img.*?\]http[^\[\]]*?(jpg|png|\.gif(?![a-zA-Z0-9]))\[\/img\]/ig)
 
             resultImgs = [];
             if (images.length) {
                 images.map((item)=>{
-                    var img_url = item.match(/http.*?(png|jpg)/)[0];
+                    var img_url = item.match(/http.*?(png|jpg|\.gif(?![a-zA-Z0-9]))/)[0];
                     var new_imgs = `<a href="${img_url}"><img src="${img_url}" height=137></a>`;
                     resultImgs.push(new_imgs);
                 })
@@ -7772,7 +7772,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
         })
         $('#send_ptpimg').click((e)=>{
             var origin_str = $('#picture').val();
-            images = origin_str.match(/\[img\]http[^\[\]]*?(jpg|png|webp)/ig).map((item)=>{ return item.replace(/\[.*?\]/g, ''); });
+            images = origin_str.match(/\[img\]http[^\[\]]*?(jpg|png|webp|\.gif(?![a-zA-Z0-9]))/ig).map((item)=>{ return item.replace(/\[.*?\]/g, ''); });
             if (images.length) {
                 ptp_send_images(images, used_ptp_img_key)
                     .then(function(new_urls){
@@ -7788,7 +7788,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
 
         $('#send_imgbox').click((e)=>{
             var origin_str = $('#picture').val();
-            images = origin_str.match(/\[img\]http[^\[\]]*?(jpg|png|webp)/ig).map((item)=>{ return item.replace(/\[.*?\]/g, ''); });
+            images = origin_str.match(/\[img\]http[^\[\]]*?(jpg|png|webp|\.gif(?![a-zA-Z0-9]))/ig).map((item)=>{ return item.replace(/\[.*?\]/g, ''); });
             if (images.length) {
                 var name = 'set your gallary name';
                 try {
@@ -7806,7 +7806,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
 
         $('#send_hdbits').click((e)=>{
             var origin_str = $('#picture').val();
-            images = origin_str.match(/\[img\]http[^\[\]]*?(jpg|png|webp)/ig).map((item)=>{ return item.replace(/\[.*?\]/g, ''); });
+            images = origin_str.match(/\[img\]http[^\[\]]*?(jpg|png|webp|\.gif(?![a-zA-Z0-9]))/ig).map((item)=>{ return item.replace(/\[.*?\]/g, ''); });
             if (images.length) {
                 var name = 'set your gallary name';
                 try {
@@ -7823,9 +7823,9 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
         });
 
         $('#send_pixhost').click((e)=>{
-            if ($('#picture').val().match(/http[^\[\]]*?(jpg|png|webp)/ig).length > 0) {
+            if ($('#picture').val().match(/http[^\[\]]*?(jpg|png|webp|\.gif(?![a-zA-Z0-9]))/ig).length > 0) {
                 var origin_str = $('#picture').val();
-                images = origin_str.match(/\[img\]http[^\[\]]*?(jpg|png|webp)/ig).map((item)=>{ return item.replace(/\[.*?\]/g, ''); });
+                images = origin_str.match(/\[img\]http[^\[\]]*?(jpg|png|webp|\.gif(?![a-zA-Z0-9]))/ig).map((item)=>{ return item.replace(/\[.*?\]/g, ''); });
                 if (images[0].match(/t.hdbits.org/)) {
                     var name = 'set your gallary name';
                     try {
@@ -7868,7 +7868,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
         $('#send_cmct').click((e)=>{
             var origin_str = $('#picture').val();
             origin_str = ensure_img_tags(origin_str);   // 兼容“直接链接”输入
-            var matched = origin_str.match(/\[img\]http[^\[\]]*?(jpg|png|webp|jpeg)/ig);
+            var matched = origin_str.match(/\[img\]http[^\[\]]*?(jpg|png|webp|jpeg|\.gif(?![a-zA-Z0-9]))/ig);
             if (!matched || !matched.length) { alert('请输入图片地址！！'); return; }
             var images = matched.map(function(item){ return item.replace(/\[.*?\]/g, ''); });
 
@@ -7906,7 +7906,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
             }
             var source_str = $('#img_source').val();
             var dest_str = $('#img_dest').val();
-            images = origin_str.match(/http[^\[\]]*?(jpg|png)/ig);
+            images = origin_str.match(/http[^\[\]]*?(jpg|png|\.gif(?![a-zA-Z0-9]))/ig);
             images.map(item=>{
                 var new_img = item.replace(source_str, dest_str);
                 origin_str = origin_str.replace(item, new_img);
@@ -7938,7 +7938,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
                 return p;
             }
             var origin_str = $('#picture').val();
-            var imgbb_urls = origin_str.match(/\[url=.*?\]\[img\]https?:\/\/i.ibb.co[^\[\]]*?(jpg|png)\[\/img\]\[\/url\]/ig);
+            var imgbb_urls = origin_str.match(/\[url=.*?\]\[img\]https?:\/\/i.ibb.co[^\[\]]*?(jpg|png|\.gif(?![a-zA-Z0-9]))\[\/img\]\[\/url\]/ig);
             if (imgbb_urls === null) {
                 alert("没有监测到imgbb缩略图链接");
             } else {
@@ -7967,7 +7967,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
                     get_full_size_picture_urls(null, origin_str, $('#result'), true);
                 }
             }
-            var postimg_urls = origin_str.match(/https?:\/\/i.postimg.cc[^\[\]]*?(jpg|png)/ig);
+            var postimg_urls = origin_str.match(/https?:\/\/i.postimg.cc[^\[\]]*?(jpg|png|\.gif(?![a-zA-Z0-9]))/ig);
             if (postimg_urls === null) {
                 // alert("没有监测到postimg链接");
             } else {
@@ -7983,7 +7983,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
                     for (i=0; i<data.length; i++) {
                         origin_str = origin_str.replace(postimg_urls[i], data[i]);
                     }
-                    origin_str = origin_str.match(/\[img\]https?:.*?(jpg|png)\[\/img\]/ig).join('\n');
+                    origin_str = origin_str.match(/\[img\]https?:.*?(jpg|png|\.gif(?![a-zA-Z0-9]))\[\/img\]/ig).join('\n');
                     $('#result').val(origin_str);
                 })
             }
@@ -8006,7 +8006,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
 
         $('#350px').click((e)=>{
             var origin_str = $('#picture').val();
-            images = origin_str.match(/\[img\]http[^\[\]]*?(jpg|png)\[\/img\]/ig).join('\n');
+            images = origin_str.match(/\[img\]http[^\[\]]*?(jpg|png|\.gif(?![a-zA-Z0-9]))\[\/img\]/ig).join('\n');
             if (images.length) {
                 $('#result').val(deal_img_350(images));
             }
@@ -8045,7 +8045,7 @@ function ensure_img_tags(origin_str){
     lines.forEach(function(line){
         line = line.trim();
         if (!line) return;
-        if (/^https?:\/\/\S+\.(jpg|jpeg|png|webp)(\?\S*)?$/i.test(line)) {
+        if (/^https?:\/\/\S+\.(jpg|jpeg|png|webp|gif)(\?\S*)?$/i.test(line)) {
             out.push('[img]' + line + '[/img]');
         } else {
             out.push(line);
@@ -8056,12 +8056,12 @@ function ensure_img_tags(origin_str){
 
 function del_img_wz_assast_fun(origin_str){
     origin_str = ensure_img_tags(origin_str);
-    images = origin_str.match(/\[img.*?\]http[^\[\]]*?(jpg|png)\[\/img\]/ig)
+    images = origin_str.match(/\[img.*?\]http[^\[\]]*?(jpg|png|\.gif(?![a-zA-Z0-9]))\[\/img\]/ig)
 
     resultImgs = [];
     if (images && images.length) {
         images.map((item)=>{
-            var img_url = item.match(/http.*?(png|jpg)/)[0];
+            var img_url = item.match(/http.*?(png|jpg|\.gif(?![a-zA-Z0-9]))/)[0];
             var new_imgs = `[url=${img_url}][img=350x350]${img_url}[/img][/url]`;
             resultImgs.push(new_imgs);
         })
@@ -8070,12 +8070,12 @@ function del_img_wz_assast_fun(origin_str){
 }
 function del_img_yb_assast_fun(origin_str){
     origin_str = ensure_img_tags(origin_str);
-    images = origin_str.match(/\[img.*?\]http[^\[\]]*?(jpg|png)\[\/img\]/ig)
+    images = origin_str.match(/\[img.*?\]http[^\[\]]*?(jpg|png|\.gif(?![a-zA-Z0-9]))\[\/img\]/ig)
 
     resultImgs = [];
     if (images && images.length) {
         images.map((item)=>{
-            var img_url = item.match(/http.*?(png|jpg)/)[0];
+            var img_url = item.match(/http.*?(png|jpg|\.gif(?![a-zA-Z0-9]))/)[0];
             var new_imgs = `[img]${img_url}[/img]`;
             resultImgs.push(new_imgs);
         })
@@ -9007,7 +9007,7 @@ function add_picture_transfer() {
         var rehost_site = $('input[name="rehost_site"]:checked').val();
         var img_url = $('input[name="img_url"]').val();
         if (rehost_site == 'PixHost' || rehost_site == 'PTPimg' || used_rehost_img_info[rehost_site]['api-key']) {
-            if (!img_url.match(/https?:\/\/.*?(png|jpg|webp)/)) {
+            if (!img_url.match(/https?:\/\/.*?(png|jpg|webp|\.gif(?![a-zA-Z0-9]))/)) {
                 alert('请输入图片链接！！');
                 return;
             }
@@ -10254,7 +10254,7 @@ function auto_feed() {
                 }
             });
             descr_td.find('a').has('img').map((index,e)=>{
-                if ($(e).find('img').attr('src').match(/http.*(jpg|png)/i)){
+                if ($(e).find('img').attr('src').match(/http.*(jpg|png|\.gif(?![a-zA-Z0-9]))/i)){
                     raw_info.descr += `[url=${$(e).attr('href')}][img]${$(e).find('img').attr('src')}[/img][/url] `;
                 }
             });
@@ -26511,7 +26511,7 @@ function auto_feed() {
                 }
                 if (infos.pic_info.match(/ptpimg/)) {
                     var pic_info = '';
-                    infos.pic_info.match(/\[img\]http[^\[\]]*?(jpg|png)\[\/img\]/g).forEach((item)=>{
+                    infos.pic_info.match(/\[img\]http[^\[\]]*?(jpg|png|\.gif(?![a-zA-Z0-9]))\[\/img\]/g).forEach((item)=>{
                         pic_info += item + '\n';
                     })
                     descr = descr.format({'poster': pic_info});
@@ -26534,7 +26534,7 @@ function auto_feed() {
                 container.val(descr);
             }
             $('#goptp').click(()=>{
-                var img_urls = $('#t1').val().match(/http[^\[\]]*?(jpg|png)/g);
+                var img_urls = $('#t1').val().match(/http[^\[\]]*?(jpg|png|\.gif(?![a-zA-Z0-9]))/g);
                 console.log(img_urls);
                 if (img_urls.length) {
                     ptp_send_images(img_urls, used_ptp_img_key)
@@ -26895,13 +26895,13 @@ function auto_feed() {
                         $('#description-container').next().find('td:eq(1)').append(`<a href="#" id="go_imgbox">辅助转存原始图：转至PIXHOST</a>`);
                         $('#go_imgbox').click(function(e) {
                             e.preventDefault();
-                            if ($('#release_desc').val().match(/http[^\[\]]*?(jpg|png)/g).length > 0) {
+                            if ($('#release_desc').val().match(/http[^\[\]]*?(jpg|png|\.gif(?![a-zA-Z0-9]))/g).length > 0) {
                                 var origin_str = $('#release_desc').val();
-                                raw_info.images = $('#release_desc').val().match(/http[^\[\]]*?(jpg|png)/g);
+                                raw_info.images = $('#release_desc').val().match(/http[^\[\]]*?(jpg|png|\.gif(?![a-zA-Z0-9]))/g);
                                 pix_send_images(raw_info.images)
                                 .then(function(new_urls) {
                                     new_urls = new_urls.toString().split(',').map((item)=>{
-                                        return item.match(/\[img\]http[^\[\]]*?(jpg|png)\[\/img\]/)[0].replace('//t', '//img').replace('thumbs', 'images');
+                                        return item.match(/\[img\]http[^\[\]]*?(jpg|png|\.gif(?![a-zA-Z0-9]))\[\/img\]/)[0].replace('//t', '//img').replace('thumbs', 'images');
                                     });
                                     var urls_append = '';
                                     if (new_urls.length > 1) {
@@ -26947,7 +26947,7 @@ function auto_feed() {
                         $('#go_setting').click(()=>{
                             try{
                                 var origin_str = $('#release_desc').val();
-                                raw_info.images = origin_str.match(/http[^\[\]]*?(jpg|png)/g);
+                                raw_info.images = origin_str.match(/http[^\[\]]*?(jpg|png|\.gif(?![a-zA-Z0-9]))/g);
                                 var start = parseInt($('#start').val() ? $('#start').val(): 1);
                                 var end = parseInt($('#end').val() ? $('#end').val(): raw_info.images.length);
                                 var comparison_str = $('#comparison').val() ? $('#comparison').val(): "Source, Encode";
@@ -26961,7 +26961,7 @@ function auto_feed() {
                         $('#show_img').click((e)=>{
                             try{
                                 var origin_str = $('#release_desc').val();
-                                raw_info.images = origin_str.match(/http[^\[\]]*?(jpg|png)/g);
+                                raw_info.images = origin_str.match(/http[^\[\]]*?(jpg|png|\.gif(?![a-zA-Z0-9]))/g);
                                 var start = parseInt($('#start').val() ? $('#start').val(): 1);
                                 var end = parseInt($('#end').val() ? $('#end').val(): raw_info.images.length);
                                 var comparison_str = $('#comparison').val() ? $('#comparison').val(): "Source, Encode";
@@ -26995,7 +26995,7 @@ function auto_feed() {
                             }
                             var source_str = $('#img_source').val();
                             var dest_str = $('#img_dest').val();
-                            raw_info.images = origin_str.match(/http[^\[\]]*?(jpg|png)/g);
+                            raw_info.images = origin_str.match(/http[^\[\]]*?(jpg|png|\.gif(?![a-zA-Z0-9]))/g);
                             raw_info.images.map(item=>{
                                 var new_img = item.replace(source_str, dest_str);
                                 origin_str = origin_str.replace(item, new_img);
@@ -27015,7 +27015,7 @@ function auto_feed() {
                                 return p;
                             }
                             var origin_str = $('#release_desc').val();
-                            var imgbb_urls = origin_str.match(/https?:\/\/i.ibb.co[^\[\]]*?(jpg|png)/g);
+                            var imgbb_urls = origin_str.match(/https?:\/\/i.ibb.co[^\[\]]*?(jpg|png|\.gif(?![a-zA-Z0-9]))/g);
                             if (!imgbb_urls.length) {
                                 alert("没有监测到imgbb链接");
                             } else {
@@ -31378,7 +31378,7 @@ function auto_feed() {
             $('#show_pic').click((e)=>{
                 if (e.target.checked) {
                     $('#pictures').show();
-                    var pic_urls = infos.pic_info.match(/http.*?(png|jpg)/g);
+                    var pic_urls = infos.pic_info.match(/http.*?(png|jpg|\.gif(?![a-zA-Z0-9]))/g);
                     $('#pictures').val(pic_urls.join('\n'));
                 } else {
                     $('#pictures').hide();
