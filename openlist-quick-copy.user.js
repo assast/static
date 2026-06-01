@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         OpenList Quick Copy
 // @namespace    dream.openlist.quickcopy
-// @version      0.2.1
+// @version      0.2.2
 // @description  在 OpenList 中一键复制选中文件到预设目录（支持多实例）
 // @author       playboy
 // @match        *://*/*
@@ -351,6 +351,19 @@
     .preset-item:hover { background: #eff6ff; }
     .preset-name { font-size: 14px; color: #111827; font-weight: 500; }
     .preset-path { font-size: 12px; color: #6b7280; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; word-break: break-all; }
+    .preset-choice {
+      display: grid; grid-template-columns: 18px 1fr; align-items: flex-start; gap: 10px;
+      width: 100%; padding: 10px 14px; border-bottom: 1px solid #f3f4f6;
+      cursor: pointer; background: white; box-sizing: border-box;
+    }
+    .preset-choice:hover { background: #eff6ff; }
+    .preset-choice input { margin: 2px 0 0; width: 16px; height: 16px; cursor: pointer; }
+    .preset-choice-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .preset-menu-actions {
+      display: flex; gap: 8px; justify-content: flex-end;
+      padding: 10px 14px; background: #f9fafb;
+    }
+    .preset-menu-actions .btn { padding: 6px 10px; font-size: 12px; }
 
     .config-overlay {
       position: fixed; inset: 0;
@@ -693,37 +706,98 @@
 
     const header = document.createElement('div');
     header.className = 'preset-menu-header';
-    header.textContent = `复制 ${names.length} 个文件到：`;
+    header.textContent = `复制 ${names.length} 个文件到（可多选）：`;
     menu.appendChild(header);
 
+    const choices = [];
     presets.forEach((p) => {
-      const item = document.createElement('button');
-      item.className = 'preset-item';
-      item.innerHTML = `<span class="preset-name">${escapeHtml(p.name)}</span><span class="preset-path">${escapeHtml(p.path)}</span>`;
-      item.addEventListener('click', async (ev) => {
-        ev.stopPropagation();
-        menu.hidden = true;
-        try {
-          toast(`正在处理 ${names.length} 项 → ${p.path}`, 'info');
-          const r = await copyTo(p.path, names);
-          if (r.copied === 0) {
-            toast(`ℹ 全部 ${r.total} 项已存在于 ${p.path}，未复制`, 'info');
-          } else if (r.skipped === 0) {
-            toast(`✓ 已提交 ${r.copied} 项 → ${p.path}，点 ⏳ 看进度`, 'success');
-            refreshProgressPanelIfOpen();
-          } else {
-            toast(`✓ 已提交 ${r.copied} 项 / 跳过 ${r.skipped} 项已存在 → ${p.path}，点 ⏳ 看进度`, 'success');
-            refreshProgressPanelIfOpen();
-          }
-        } catch (err) {
-          toast(`✗ 复制失败：${err.message}`, 'error');
-        }
-      });
-      menu.appendChild(item);
+      const label = document.createElement('label');
+      label.className = 'preset-choice';
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+
+      const text = document.createElement('span');
+      text.className = 'preset-choice-text';
+      text.innerHTML = `<span class="preset-name">${escapeHtml(p.name)}</span><span class="preset-path">${escapeHtml(p.path)}</span>`;
+
+      label.appendChild(checkbox);
+      label.appendChild(text);
+      menu.appendChild(label);
+      choices.push({ preset: p, checkbox });
     });
+
+    const actions = document.createElement('div');
+    actions.className = 'preset-menu-actions';
+
+    const btnSelectAll = document.createElement('button');
+    btnSelectAll.className = 'btn';
+    btnSelectAll.textContent = '全选';
+    btnSelectAll.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const shouldCheck = choices.some(({ checkbox }) => !checkbox.checked);
+      choices.forEach(({ checkbox }) => { checkbox.checked = shouldCheck; });
+      btnSelectAll.textContent = shouldCheck ? '全不选' : '全选';
+    });
+
+    const btnCopy = document.createElement('button');
+    btnCopy.className = 'btn btn-primary';
+    btnCopy.textContent = '开始复制';
+    btnCopy.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      const selected = choices.filter(({ checkbox }) => checkbox.checked).map(({ preset }) => preset);
+      if (selected.length === 0) {
+        toast('请至少勾选一个目标路径', 'info');
+        return;
+      }
+      btnCopy.disabled = true;
+      menu.hidden = true;
+      await copyToPresetList(names, selected);
+    });
+
+    actions.appendChild(btnSelectAll);
+    actions.appendChild(btnCopy);
+    menu.appendChild(actions);
 
     menu.hidden = false;
     positionMenuNearFab(menu);
+  }
+
+  async function copyToPresetList(names, presets) {
+    const targets = presets.map(p => ({ name: p.name, path: normalizePath(p.path) }));
+    const uniqueTargets = targets.filter((target, index, arr) =>
+      arr.findIndex(item => item.path === target.path) === index
+    );
+
+    toast(`正在处理 ${names.length} 项 → ${uniqueTargets.length} 个目标路径`, 'info');
+
+    const results = [];
+    const failed = [];
+    for (const target of uniqueTargets) {
+      try {
+        const r = await copyTo(target.path, names);
+        results.push({ target, ...r });
+      } catch (err) {
+        failed.push({ target, message: err.message });
+      }
+    }
+
+    if (results.some(r => r.copied > 0)) {
+      refreshProgressPanelIfOpen();
+    }
+
+    const submitted = results.filter(r => r.copied > 0);
+    const skippedOnly = results.filter(r => r.copied === 0);
+    if (failed.length === uniqueTargets.length) {
+      toast(`✗ ${failed.length} 个目标路径复制失败：${failed[0].message}`, 'error');
+    } else if (failed.length > 0) {
+      const prefix = submitted.length > 0 ? `✓ ${submitted.length} 个路径已提交` : `ℹ ${skippedOnly.length} 个路径全已存在`;
+      toast(`${prefix}，${failed.length} 个失败，点 ⏳ 看进度`, submitted.length > 0 ? 'success' : 'error');
+    } else if (submitted.length > 0) {
+      toast(`✓ ${submitted.length} 个路径已提交，${skippedOnly.length} 个全已存在，点 ⏳ 看进度`, 'success');
+    } else {
+      toast(`ℹ ${skippedOnly.length} 个目标路径中全部文件已存在，未复制`, 'info');
+    }
   }
 
   function positionMenuNearFab(menu) {
