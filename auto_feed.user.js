@@ -34,6 +34,7 @@
 // @match        https://secret-cinema.pw/torrents.php?id=*
 // @match        https://filelist.io/*
 // @match        https://bluebird-hd.org/*
+// @match        https://doubaninfo.com/*
 // @match        https://iptorrents.com/torrent.php?id=*
 // @match        http*://hd-space.org/index.php?page=torrent-details*
 // @match        https://digitalcore.club/torrent/*
@@ -97,7 +98,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      2.9.9
+// @version      3.0.0
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -788,30 +789,11 @@ if (site_url.match(/(blutopia.cc|darkland.top|eiga.moi|hd-olimpo.club|aither.cc|
     }
     return;
 }
-//处理ptgen跳转，基本上使用频率很少了，不过还是可以在内站作为豆瓣信息不全的时候使用
-if (site_url.match(/^https:\/\/api.iyuu.cn\/ptgen\/\?imdb=/)){
-    url = site_url.split('=')[1];
-    if (url.match(/tt/i)){
-        req = 'https://movie.douban.com/j/subject_suggest?q=' + url;
-        GM_xmlhttpRequest({
-            method: 'GET',
-            url: req,
-            onload: function(res) {
-                var response = JSON.parse(res.responseText);
-                if (response.length > 0) {
-                    url = 'https://movie.douban.com/subject/' + response[0].id;
-                } else {
-                    url = 'https://www.imdb.com/title/' + url;
-                }
-                document.getElementById('input_value').value = url;
-                document.getElementById('query_btn').click();
-            }
-        });
-    } else {
-        url = 'https://movie.douban.com/subject/' + url + '/';
-        document.getElementById('input_value').value = url;
-        document.getElementById('query_btn').click();
-    }
+//处理豆影ptgen跳转：doubaninfo.com/#ptgen?url=... 页面自动填入并查询
+if (site_url.match(/https:\/\/doubaninfo.com\/#ptgen\?url=/)) {
+    var decoded_url = decodeURIComponent(site_url.split('url=')[1]);
+    $('#q').val(decoded_url);
+    $('#btn').click();
     return;
 }
 if (site_url.match(/^https:\/\/passthepopcorn.me\/torrents.php\?id=\d+&torrentid=\d+#separator#/)) {
@@ -914,8 +896,14 @@ if (site_url.match(/^https:\/\/nebulance.io\/torrents.php\?id=\d+#separator#/)) 
  ********************************************************************************************************************/
 
 //提供可用的获取豆瓣信息两个api，从0-1选择。主要应用于外站，另一个是自动爬取豆瓣页面
-const apis = ['https://api.iyuu.cn/App.Movie.Ptgen', 'https://ptgen.tju.pt/infogen'];
-var api_chosen = GM_getValue('api_chosen') === undefined ? 3: GM_getValue('api_chosen');
+const apis = ['https://doubaninfo.com/api/v1_douban.php', 'https://ptgen.tju.pt/infogen'];
+var douban_key = GM_getValue('douban_key') === undefined ? '': GM_getValue('douban_key');
+var api_chosen = GM_getValue('api_chosen') === undefined ? 0: GM_getValue('api_chosen');
+// 老用户迁移: 如果填了豆影 API Key 但 PTGen 还是旧的默认值(豆瓣页面爬取),自动切到豆影
+if (douban_key && api_chosen == 3) {
+    api_chosen = 0;
+    GM_setValue('api_chosen', 0);
+}
 var tldomain = GM_getValue('tldomain') === undefined ? 0: GM_getValue('tldomain');
 var imdb2db_chosen = GM_getValue('imdb2db_chosen') === undefined ? 0: GM_getValue('imdb2db_chosen');
 
@@ -1881,6 +1869,7 @@ function add_search_urls(container, imdbid, imdbno, search_name, mode) {
         return;
     });
     $('.hdb-task').click((e)=>{
+        raw_info.descr = strip_img_proxy(raw_info.descr);
         GM_setValue('task_info', JSON.stringify(raw_info));
     });
     if (mode == 1) {
@@ -2864,6 +2853,12 @@ function get_source_sel_from_descr(descr){
 
 //为获取豆瓣信息提供链接简化 promise
 function create_site_url_for_douban_info(raw_info, is_douban_search_needed){
+    if (api_chosen == 0) {
+        var p = new Promise(function(resolve, reject){
+            resolve(raw_info);
+        });
+        return p;
+    }
     if (imdb2db_chosen == 0) {
         var p = new Promise(function(resolve, reject){
             if (is_douban_search_needed){
@@ -2938,6 +2933,21 @@ function check_descr(descr){
         flag = true;
     }
     return flag;
+}
+
+// 剥离 BLU / Aither / BHD 等外站给图床(imgbox / slow.pics 等)链接套的 wsrv.nl / weserv.nl 加速代理前缀,只保留原始直链。
+// 例: https://wsrv.nl/?n=-1&ll&url=https://i.slow.pics/4KKTSIHX.png  ->  https://i.slow.pics/4KKTSIHX.png
+// 注:旧逻辑写死匹配 ?n=-1&url=,漏掉了带 &ll 等额外参数的新格式;这里改成匹配 url= 之前的任意参数,
+//     并兼容 http/https、images.weserv.nl 以及 percent-encoded 的内层链接。
+function strip_img_proxy(text) {
+    if (!text) return text;
+    return text.replace(/https?:\/\/(?:images\.)?(?:wsrv|weserv)\.nl\/\?[^\[\]\s'"]*?url=([^\[\]\s'"]*)/gi, function (m, inner) {
+        try {
+            return /%[0-9A-Fa-f]{2}/.test(inner) ? decodeURIComponent(inner) : inner;
+        } catch (e) {
+            return inner;
+        }
+    });
 }
 
 function get_full_size_picture_urls(raw_info, imgs, container, need_img_label, callback, remove_img) {
@@ -3400,6 +3410,23 @@ function init_buttons_for_transfer(container, site, mode, raw_info) {
     var douban_text = document.createTextNode('API');
     container.append(checkBox);
     container.append(douban_text);
+
+    var label = document.createElement("label");
+    label.style.display = 'inline-flex';
+    label.style.alignItems = 'center';
+    label.style.cursor = 'pointer';
+
+    var checkBox2 = document.createElement("input");
+    checkBox2.setAttribute("type", "checkbox");
+    checkBox2.setAttribute("id", 'douying_api');
+    checkBox2.style.margin = '0 4px 0 0';
+    checkBox2.checked = true;
+
+    var douying_text = document.createTextNode('豆影');
+
+    label.append(checkBox2);
+    label.append(douying_text);
+    container.append(label);
 
     var ptgen_button = document.createElement("input");
     ptgen_button.type = "button";
@@ -4481,6 +4508,35 @@ function getDoc(url, meta, callback) {
 function page_parser(responseText) {
     responseText = responseText.replace(/s+src=/ig, ' data-src=');
     return (new DOMParser()).parseFromString(responseText, 'text/html');
+}
+
+function after_douban(douban_info, is_douban_needed) {
+    douban_info = douban_info.replace("[/img][/center]", "[/img]");
+    douban_info = douban_info.replace("hongleyou.cn", "doubanio.com");
+    if (douban_info != '') {
+        raw_info.descr = douban_info + '\n\n' + raw_info.descr;
+        var thanks = raw_info.descr.match(/\[quote\].*?感谢原制作者发布。.*?\[\/quote\]/);
+        if (thanks) {
+            raw_info.descr = thanks[0] + '\n' + raw_info.descr.replace(thanks[0], '');
+        }
+
+        if (is_douban_needed && raw_info.descr.match(/http(s*):\/\/www.imdb.com\/title\/tt(\d+)/i)){
+            raw_info.url = raw_info.descr.match(/http(s*):\/\/www.imdb.com\/title\/tt(\d+)/i)[0] + '/';
+        }
+        if (raw_info.descr.match(/类[\s\S]{0,5}别[\s\S]{0,30}纪录片/i)) {
+            raw_info.type = '纪录';
+        } else if (raw_info.descr.match(/类[\s\S]{0,5}别[\s\S]{0,30}动画/i)) {
+            raw_info.type = '动漫';
+        }
+        set_jump_href(raw_info, 1);
+        jump_str = dictToString(raw_info);
+        $('#douban_button').val('获取成功');
+        try { $('#textarea').val(douban_info); } catch(err) {}
+        GM_setClipboard(douban_info);
+        rebuild_href(raw_info);
+    } else {
+        $('#douban_button').val('获取失败');
+    }
 }
 
 function get_search_name(name) {
@@ -7314,7 +7370,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
 
         //**************************************************** 4 ***************************************************************************
         $('#setting').append(`<b>选择PTGen的API节点(适用于外站)：</b>`);
-        $('#setting').append(`<input type="radio" name="ptgen" value="0">api.iyuu.cn`);
+        $('#setting').append(`<input type="radio" name="ptgen" value="0">豆影`);
         $('#setting').append(`<input type="radio" name="ptgen" value="1">ptgen`);
         $('#setting').append(`<input type="radio" name="ptgen" value="3">豆瓣页面爬取`);
         $(`input:radio[name="ptgen"][value="${api_chosen}"]`).prop('checked', true);
@@ -7402,6 +7458,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
             $('#setting').append(`<label><b>${key}对应apikey(<a href="${used_rehost_img_info[key].url}" target="_blank"><font color="red">登录站点</font></a>即可获取):</b></label><input type="text" name="${key}_key" style="width: 300px; margin-left:5px" value=${used_rehost_img_info[key]['api-key']}><br><br>`);
         }
         $('#setting').append(`<label><b>TorrentLeech的rsskey(<a href="https://wiki.torrentleech.org/doku.php/rss_-_how_to_automatically_download_torrents_with_utorrent" target="_blank"><font color="red">依照教程</font></a>进行设置):</b></label><input type="text" name="tl_rss_key" style="width: 300px; margin-left:5px" value=${used_tl_rss_key}><br><br>`);
+        $('#setting').append(`<label><b>豆影(doubaninfo)API Key(<a href="https://doubaninfo.com/user/dashboard.php" target="_blank"><font color="red">登录获取</font></a>):</b></label><input type="text" name="douban_key" style="width: 300px; margin-left:5px" value=${douban_key}><br><br>`);
         $('label').css({"width": "280px", "text-align": "right", "display": "inline-block"});
 
         //**************************************************** 3.2 *************************************************************************
@@ -7502,6 +7559,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
             GM_setValue('used_ptp_img_key', $(`input[name="ptp_img_key"]`).val());
             GM_setValue('used_tmdb_key', $(`input[name="tmdb_key"]`).val());
             GM_setValue('used_tl_rss_key', $(`input[name="tl_rss_key"]`).val());
+            GM_setValue('douban_key', $(`input[name="douban_key"]`).val());
 
             //处理匿名
             if_uplver = $(`input[name="anonymous"]:last`).prop('checked') ? 1: 0;
@@ -7675,6 +7733,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
         $('#dealimg').append(`<div>结果展示 <a href="#" id="up_text" style="color:red;">↑将结果移入输入框</a><br><textarea id="result" style="width:700px;" rows="15"></textarea></div>`);
 
         var descr = GM_getValue('descr') === undefined ? '': GM_getValue('descr');
+        descr = strip_img_proxy(descr);
         var imgs_to_deal = descr.match(/(\[url=.*?\])?\[img\].*?(png|jpg|webp|\.gif(?![a-zA-Z0-9]))\[\/img\](\[\/url\])?/ig);
         try {
             if (imgs_to_deal) {
@@ -10472,7 +10531,7 @@ function auto_feed() {
                     raw_info.descr += '[img]' + $(e)[0].src + '[/img] ';
                 }
             });
-            raw_info.descr = raw_info.descr.replace(/https:\/\/wsrv.nl\/\?n=-1&url=/g, '');
+            raw_info.descr = strip_img_proxy(raw_info.descr);
             raw_info.torrent_url = $('a[href*="download/"]').attr('href');
             if (raw_info.url && all_sites_show_douban && (origin_site == 'FNP' || origin_site == 'OnlyEncodes' || origin_site == 'ReelFliX')) {
                 getData(raw_info.url, function(data){
@@ -12853,7 +12912,7 @@ function auto_feed() {
                     }
                 }
             } catch (err) {}
-            img_urls = img_urls.replace(/https:\/\/wsrv.nl\/\?n=-1&url=/g, '');
+            img_urls = strip_img_proxy(img_urls);
             var vob_info = '';
             if ($('summary').length && raw_info.descr.match(/IFO/)) {
                 try{
@@ -13512,9 +13571,9 @@ function auto_feed() {
         ptgen.innerHTML = 'PTgen';
         ptgen.id = 'ptgen';
         ptgen.title = '根据页面的豆瓣或imdb的ID获取豆瓣信息。';
-        ptgen.href = host_link + '#ptgen?';
+        ptgen.href = 'https://doubaninfo.com/' + '#ptgen?url=';
         if (raw_info.dburl) {
-            ptgen.href = raw_info.dburl;
+            ptgen.href += raw_info.dburl.match(/subject\/(\d+)/)[1];
         } else if (raw_info.url) {
             ptgen.href += raw_info.url.match(/tt\d+/)[0];
         }
@@ -13698,6 +13757,7 @@ function auto_feed() {
         }
 
         $('.hdb-task').click((e)=>{
+            raw_info.descr = strip_img_proxy(raw_info.descr);
             GM_setValue('task_info', JSON.stringify(raw_info));
         });
 
@@ -14378,7 +14438,13 @@ function auto_feed() {
                 create_site_url_for_douban_info(raw_info, is_douban_needed)
                 .then(function(data){
                     console.log(data)
-                    if (api_chosen == 0 || api_chosen == 2) {
+                    if (api_chosen == 0) {
+                        if (raw_info.dburl){
+                            url_to_search = '?url=' + raw_info.dburl.match(/subject\/(\d+)/i)[1];
+                        } else if (raw_info.url){
+                            url_to_search = '?url=' + raw_info.url.match(/tt\d+/)[0];
+                        }
+                    } else if (api_chosen == 2) {
                         if (raw_info.dburl){
                             url_to_search = '?url=' + raw_info.dburl;
                         } else if (raw_info.url){
@@ -14392,39 +14458,24 @@ function auto_feed() {
                         }
                     }
                     if (api_chosen < 3) {
-                        getJson(apis[api_chosen] + url_to_search, null, function(res){
-                            if (api_chosen == 0) {
-                                var douban_info = !res.msg ? res.data.format : "";
-                            } else {
+                        url_to_search = apis[api_chosen] + url_to_search;
+                        if (api_chosen == 0) {
+                            if (!douban_key) {
+                                douban_key = prompt('请输入豆影API密钥，获取方法见：<br>https://doubaninfo.com/user/dashboard.php，输入后方可使用！');
+                                GM_setValue('douban_key', douban_key);
+                            }
+                            url_to_search += `&key=${douban_key}&format=bbcode&douban`;
+                            console.log(url_to_search);
+                            getDoc(url_to_search, null, function(res){
+                                douban_info = $('body', res).text();
+                                after_douban(douban_info, is_douban_needed);
+                            });
+                        } else {
+                            getJson(url_to_search, null, function(res){
                                 douban_info = !res.error ? res.format: "";
-                            }
-                            douban_info = douban_info.replace("[/img][/center]", "[/img]");
-                            douban_info = douban_info.replace("hongleyou.cn", "doubanio.com");
-                            if (douban_info != '') {
-                                raw_info.descr = douban_info + '\n\n' + raw_info.descr;
-                                var thanks = raw_info.descr.match(/\[quote\].*?感谢原制作者发布。.*?\[\/quote\]/);
-                                if (thanks) {
-                                    raw_info.descr = thanks[0] + '\n' + raw_info.descr.replace(thanks[0], '');
-                                }
-
-                                if (is_douban_needed && raw_info.descr.match(/http(s*):\/\/www.imdb.com\/title\/tt(\d+)/i)){
-                                    raw_info.url = raw_info.descr.match(/http(s*):\/\/www.imdb.com\/title\/tt(\d+)/i)[0] + '/';
-                                }
-                                if (raw_info.descr.match(/类[\s\S]{0,5}别[\s\S]{0,30}纪录片/i)) {
-                                    raw_info.type = '纪录';
-                                } else if (raw_info.descr.match(/类[\s\S]{0,5}别[\s\S]{0,30}动画/i)) {
-                                    raw_info.type = '动漫';
-                                }
-                                set_jump_href(raw_info, 1);
-                                jump_str = dictToString(raw_info);
-                                douban_button.value = '获取成功';
-                                try { $('#textarea').val(douban_info); } catch(err) {}
-                                GM_setClipboard(douban_info);
-                                rebuild_href(raw_info);
-                            } else {
-                                douban_button.value = '获取失败';
-                            }
-                        });
+                                after_douban(douban_info, is_douban_needed);
+                            });
+                        }
                     } else {
                         get_douban_info(raw_info);
                     }
@@ -14454,7 +14505,31 @@ function auto_feed() {
                 if (raw_info.zh_name) {
                     search_name = raw_info.zh_name;
                 }
-                if ($('#douban_api').prop('checked')){
+                if ($('#douying_api').prop('checked')){
+                    if (!douban_key) {
+                        douban_key = prompt('请输入豆影API密钥，获取方法见：<br>https://doubaninfo.com/user/dashboard.php，输入后方可使用！');
+                        GM_setValue('douban_key', douban_key);
+                    }
+                    const url_prex = 'https://doubaninfo.com/api/v1_douban.php?url=';
+                    var search_url = url_prex + search_name + '&key=' + douban_key + '&format=bbcode&douban';
+                    var textarea = document.getElementById('textarea');
+                    getDoc(search_url, null, function(doc){
+                        var data = $('body', doc).text();
+                        console.log(data);
+                        if (data) {
+                            textarea.value = data;
+                            after_douban(data, false);
+                            try{
+                                raw_info.dburl = data.match(/http(s*):\/\/.*?douban.com\/subject\/(\d+)/i)[0] + '/';
+                                $('#input_box').val(raw_info.dburl);
+                            } catch(err){
+                                console.log(err);
+                            }
+                        } else {
+                            textarea.value = "暂时没有搜索结果！！";
+                        }
+                    });
+                } else if ($('#douban_api').prop('checked')){
                     const url_prex = 'https://movie.douban.com/j/subject_suggest?q=';
                     var search_url = url_prex + search_name;
                     var textarea = document.getElementById('textarea');
@@ -14481,18 +14556,13 @@ function auto_feed() {
 
             ptgen_button.addEventListener('click', function(){
                 var tmp_url = document.getElementById('input_box').value;
-                create_site_url_for_douban_info(raw_info, true).then(function(data){
-                    if (raw_info.dburl){
-                        tmp_url = raw_info.dburl.match(/subject\/(\d+)/i)[1];
-                    } else{
-                        tmp_url = tmp_url.match(/tt\d+/)[0];
-                    }
-                    url = host_link + '#ptgen?' + tmp_url;
-                    window.open(url, '_blank');
-                }, function() {
-                    url = host_link + '#ptgen?' + tmp_url.match(/tt\d+/)[0];
-                    window.open(url, '_blank');
-                });
+                if (tmp_url.match(/subject\/(\d+)/i)) {
+                    tmp_url = tmp_url.match(/subject\/(\d+)/i)[1];
+                } else if (tmp_url.match(/tt\d+/)) {
+                    tmp_url = tmp_url.match(/tt\d+/)[0];
+                }
+                url = 'https://doubaninfo.com/' + '#ptgen?url=' + tmp_url;
+                window.open(url, '_blank');
             }, false);
         }
         add_picture_transfer();
@@ -14711,16 +14781,26 @@ function auto_feed() {
         }
 
         raw_info = stringToDict(site_url.split(separator)[1]); //将弄回来的字符串转成字典
-        if (raw_info.url) {
-            var imdbid = raw_info.url.match(/tt\d+/)[0];
-            $('body').append(`<div id="navbarContainer" title="由于豆瓣链接经常失效，此处根据IMDB编号提供几个海报替换查询按钮。">
+        if (raw_info.url || raw_info.dburl) {
+            $('body').append(`<div id="navbarContainer" title="由于豆瓣海报可能失效，此处根据IMDB编号提供几个海报替换查询按钮。以及通过豆影获取豆瓣简介的功能。">
                 <div class="title">其他海报</div>
-                <a href="#" id="link1">IMDb</a>
-                <a href="#" id="link2"  title="需要填写TMDB的APIKEY。">TMDB</a>
-                <a href="#" id="link3">BOXD</a>
-                <a href="#" id="link4" title="需要有皮的账号。">PTP</a>
-                <a href="#" id="link5" title="主要是海外电视剧。">MAZE</a>
+                <a href="#" id="link1" enable="false">IMDb</a>
+                <a href="#" id="link2"  title="需要填写TMDB的APIKEY。" enable="false">TMDB</a>
+                <a href="#" id="link3" enable="false">BOXD</a>
+                <a href="#" id="link4" title="需要有皮的账号。" enable="false">PTP</a>
+                <a href="#" id="link5" title="主要是海外电视剧。" enable="false">MAZE</a>
+                <div class="title">获取简介</div>
+                <a href="#" id="link6" title="获取豆瓣简介" enable="false">豆瓣</a>
             </div>`);
+            if (raw_info.url) {
+                var imdbid = raw_info.url.match(/tt\d+/)[0];
+                $("#link1").attr("enable", "true");
+                $("#link2").attr("enable", "true");
+                $("#link3").attr("enable", "true");
+                $("#link4").attr("enable", "true");
+                $("#link5").attr("enable", "true");
+                $("#link6").attr("enable", "true");
+            }
             $("#link1").click(function(event) {
                 event.preventDefault();
                 getIMDbPoster(imdbid);
@@ -14740,6 +14820,26 @@ function auto_feed() {
             $("#link5").click(function(event) {
                 event.preventDefault();
                 getMAZEPoster(imdbid);
+            });
+            $("#link6").click(function(event) {
+                event.preventDefault();
+                var url_to_search;
+                if (raw_info.dburl){
+                    url_to_search = '?url=' + raw_info.dburl.match(/subject\/(\d+)/i)[1];
+                } else if (raw_info.url){
+                    url_to_search = '?url=' + raw_info.url.match(/tt\d+/)[0];
+                }
+                url_to_search = 'https://doubaninfo.com/api/v1_douban.php' + url_to_search;
+                if (!douban_key) {
+                    douban_key = prompt('请输入豆影API密钥，获取方法见：<br>https://doubaninfo.com/user/dashboard.php，输入后方可使用！');
+                    GM_setValue('douban_key', douban_key);
+                }
+                url_to_search += '&key=' + douban_key + '&format=bbcode&douban';
+                getDoc(url_to_search, null, function(res){
+                    var douban_info = $('body', res).text();
+                    GM_setClipboard(douban_info);
+                    alert('豆瓣简介已经复制至粘贴板！！');
+                });
             });
         }
         if ($('td:contains(你没有发布种子的权限)').length || $('p:contains("对不起你暂没有发布种子的权限")').length || $('td:contains(请提交候选)').length || $('a[href="?add_offer=1"]').length || $('h1:contains("候选区")').length) {
