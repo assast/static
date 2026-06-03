@@ -98,7 +98,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.0.1
+// @version      3.0.2
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -1691,34 +1691,90 @@ function ptp_send_images(urls, api_key) {
 };
 
 function pix_send_images(urls) {
-    return new Promise(function(resolve, reject) {
-        GM_xmlhttpRequest({
-            "method": "POST",
-            "url": "https://pixhost.to/remote/",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Accept": "application/json",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36"
-            },
-            "data": encodeURI(`imgs=${urls.join('\r\n')}&content_type=0&max_th_size=350`),
-            "onload": function(response) {
-                if (response.status != 200) {
-                    reject(response.status);
-                } else {
-                    const data = response.responseText.match(/(upload_results = )({.*})(;)/);
-                    if (data && data.length) {
-                        var imgResultList = JSON.parse(data[2]).images;
-                        resolve(imgResultList.map(function(item){
-                            return `[url=${item.show_url}][img]${item.th_url}[/img][/url]`;
-                        }));
+    var total = urls.length;
+    var batchSize = 6;  // pixhost 单个画廊最多 6 张
+    var batches = [];
+
+    // 分批
+    for (var i = 0; i < total; i += batchSize) {
+        batches.push(urls.slice(i, i + batchSize));
+    }
+
+    var completed = 0;
+    var results = [];
+
+    // 创建进度提示元素
+    var progressDiv = $('<div id="pix_progress" style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px;">正在上传到 pixhost: 0/' + total + '</div>');
+    $('#result').before(progressDiv);
+
+    // 单批次上传
+    function uploadBatch(batchUrls) {
+        return new Promise(function(resolve, reject) {
+            GM_xmlhttpRequest({
+                "method": "POST",
+                "url": "https://pixhost.to/remote/",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Accept": "application/json",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36"
+                },
+                "data": encodeURI(`imgs=${batchUrls.join('\r\n')}&content_type=0&max_th_size=350`),
+                "onload": function(response) {
+                    if (response.status != 200) {
+                        reject('HTTP ' + response.status);
                     } else {
-                        console.log(response);
-                        reject('上传失败，请重试');
+                        const data = response.responseText.match(/(upload_results = )({.*})(;)/);
+                        if (data && data.length) {
+                            var imgResultList = JSON.parse(data[2]).images;
+                            if (imgResultList && imgResultList.length > 0) {
+                                resolve(imgResultList.map(function(item){
+                                    return `[url=${item.show_url}][img]${item.th_url}[/img][/url]`;
+                                }));
+                            } else {
+                                reject('API 返回空结果');
+                            }
+                        } else {
+                            console.log('pixhost 响应:', response.responseText.slice(0, 500));
+                            reject('解析失败');
+                        }
                     }
+                },
+                "onerror": function(err) {
+                    reject('网络错误');
+                },
+                "ontimeout": function() {
+                    reject('超时');
                 }
-            }
+            });
         });
-    });
+    }
+
+    // 递归处理每批
+    function uploadNextBatch(index) {
+        if (index >= batches.length) {
+            $('#pix_progress').remove();
+            return Promise.resolve(results);
+        }
+
+        return uploadBatch(batches[index])
+            .then(function(batchResults) {
+                completed += batches[index].length;
+                results = results.concat(batchResults);
+                $('#pix_progress').text('正在上传到 pixhost: ' + completed + '/' + total + ' (成功)');
+                return uploadNextBatch(index + 1);
+            })
+            .catch(function(err) {
+                completed += batches[index].length;
+                batches[index].forEach(function(url){
+                    results.push(`[失败: ${url} - ${err}]`);
+                });
+                $('#pix_progress').text('正在上传到 pixhost: ' + completed + '/' + total + ' (部分失败)');
+                console.error('pixhost 批次上传失败:', batches[index], err);
+                return uploadNextBatch(index + 1);  // 继续下一批
+            });
+    }
+
+    return uploadNextBatch(0);
 };
 
 // cmct.xyz 图床上传：URL → 下载 blob → 以文件流形式 POST 上传 → 拿到直链
@@ -1759,10 +1815,37 @@ function cmct_upload_one(imgUrl, apiKey) {
 
 // cmct 批量：返回直链数组（不带 [img] 包裹，cmct.xyz 站点内填写直接用）
 function cmct_send_images(urls, apiKey) {
-    return Promise.all(urls.map(function(u){ return cmct_upload_one(u, apiKey); }))
-        .then(function(directUrls){
-            return directUrls;
-        });
+    var total = urls.length;
+    var completed = 0;
+    var results = [];
+
+    // 创建进度提示元素
+    var progressDiv = $('<div id="cmct_progress" style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px;">正在上传到 cmct: 0/' + total + '</div>');
+    $('#result').before(progressDiv);
+
+    // 递归上传
+    function uploadNext(index) {
+        if (index >= total) {
+            $('#cmct_progress').remove();
+            return Promise.resolve(results);
+        }
+
+        return cmct_upload_one(urls[index], apiKey)
+            .then(function(result) {
+                completed++;
+                results.push(result);
+                $('#cmct_progress').text('正在上传到 cmct: ' + completed + '/' + total + ' (成功)');
+                return uploadNext(index + 1);
+            })
+            .catch(function(err) {
+                completed++;
+                $('#cmct_progress').text('正在上传到 cmct: ' + completed + '/' + total + ' (部分失败)');
+                $('#cmct_progress').remove();
+                return Promise.reject(err);  // cmct 失败就停止
+            });
+    }
+
+    return uploadNext(0);
 }
 
 // HDB 缩略图（t.hdbits.org/xxx.jpg）对应的原图扩展可能是 png 或 jpg。
