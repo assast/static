@@ -98,7 +98,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.0.0
+// @version      3.0.1
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -2853,12 +2853,6 @@ function get_source_sel_from_descr(descr){
 
 //为获取豆瓣信息提供链接简化 promise
 function create_site_url_for_douban_info(raw_info, is_douban_search_needed){
-    if (api_chosen == 0) {
-        var p = new Promise(function(resolve, reject){
-            resolve(raw_info);
-        });
-        return p;
-    }
     if (imdb2db_chosen == 0) {
         var p = new Promise(function(resolve, reject){
             if (is_douban_search_needed){
@@ -3420,7 +3414,7 @@ function init_buttons_for_transfer(container, site, mode, raw_info) {
     checkBox2.setAttribute("type", "checkbox");
     checkBox2.setAttribute("id", 'douying_api');
     checkBox2.style.margin = '0 4px 0 0';
-    checkBox2.checked = true;
+                    checkBox2.checked = false;
 
     var douying_text = document.createTextNode('豆影');
 
@@ -4513,6 +4507,7 @@ function page_parser(responseText) {
 function after_douban(douban_info, is_douban_needed) {
     douban_info = douban_info.replace("[/img][/center]", "[/img]");
     douban_info = douban_info.replace("hongleyou.cn", "doubanio.com");
+    douban_info = douban_info.replace(/https:\/\/img\.doubaninfo\.com\//g, "https://");
     if (douban_info != '') {
         raw_info.descr = douban_info + '\n\n' + raw_info.descr;
         var thanks = raw_info.descr.match(/\[quote\].*?感谢原制作者发布。.*?\[\/quote\]/);
