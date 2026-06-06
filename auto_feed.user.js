@@ -98,7 +98,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.0.2
+// @version      3.0.3
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -3238,6 +3238,56 @@ function get_mediainfo_picture_from_descr(descr){
     info.pic_info = imgs.trim();
     return info;
 }
+
+// assast 汇总"真实 mediainfo"文本（不含主标题 raw_info.name），用于以 mediainfo 为准校正 HDR 标签
+// 来源优先级:源站抓到的 full_mediainfo + 从简介里抽出的 mediainfo 区块 + 目标站上传页已填好的 mediainfo 文本域
+function get_mediainfo_for_hdr() {
+    var mi = '';
+    try { if (raw_info.full_mediainfo) { mi += raw_info.full_mediainfo + '\n'; } } catch (e) {}
+    try {
+        var ex = get_mediainfo_picture_from_descr(raw_info.descr).mediainfo;
+        if (ex) { mi += ex + '\n'; }
+    } catch (e) {}
+    ['technical_info', 'mediainfo'].forEach(function (n) {
+        try {
+            var el = document.getElementsByName(n);
+            if (el && el.length && el[0].value) { mi += el[0].value + '\n'; }
+        } catch (e) {}
+    });
+    return mi;
+}
+
+// assast 以 mediainfo 为准校正 HDR10+ 标签
+// 背景:get_label() 是在"副标题+主标题+简介+mediainfo"拼成的大字符串上匹配 /HDR10\+/ 的,
+//      所以主标题(raw_info.name)里写了 "HDR10+"(例: Sinners 2025 Hybrid 2160p WEB-DL DoVi HDR10+ ...)
+//      就会被误判成 hdr10plus,哪怕真实 mediainfo 根本没有 HDR10+。这里用真实 mediainfo 纠正:
+//   - mediainfo 确认有 HDR10+  -> 以 HDR10+ 为准(并清掉互斥的 hdr10)
+//   - mediainfo 没有 HDR10+ 但标签被(标题)误置 -> 取消,并按 mediainfo 实际情况降级为 HDR10
+//   - 拿不到像样的 mediainfo    -> 保持 get_label 原判断不动(避免源站没给 mediainfo 时反而漏标)
+function correct_hdr10plus_by_mediainfo(labels) {
+    try {
+        var mi = get_mediainfo_for_hdr();
+        if (!mi || !/General|Video|Audio|HDR\s*format|Colou?r\s*primaries|Bit\s*depth|视频|音频|分辨率/i.test(mi)) {
+            return labels;
+        }
+        // 剔除会带文件名/发布名的行(Complete name / Movie name / File name / Title / 名称 / 文件名),
+        // 否则文件名里的 "HDR10+" 会让 mediainfo 也"看起来含" HDR10+,纠正就失效了
+        var mi_clean = mi.replace(/^[^\S\n]*(Complete name|Movie name|File name|Title|名\s*称|文件名)[^\n]*$/gim, '');
+        var mi_has_hdr10plus = /HDR10\s*\+|HDR10Plus|SMPTE\s*ST\s*2094/i.test(mi_clean);
+        if (mi_has_hdr10plus) {
+            labels.hdr10plus = true;
+            labels.hdr10 = false;   // HDR10+ 与 HDR10 互斥,以更精确的 HDR10+ 为准
+        } else if (labels.hdr10plus) {
+            labels.hdr10plus = false;
+            // mediainfo 仍有 HDR10 静态元数据(DV 混合版的 HDR10 兜底层)则降级保留 HDR10
+            if (/HDR10\b|SMPTE\s*ST\s*2086|HDR10\s*compatible/i.test(mi_clean)) {
+                labels.hdr10 = true;
+            }
+        }
+    } catch (e) { console.log('correct_hdr10plus_by_mediainfo error', e); }
+    return labels;
+}
+
 function fill_raw_info(raw_info, forward_site){
     raw_info.descr = raw_info.descr.replace(/%3A/g, ':').replace(/%2F/g, "/");
     raw_info.descr = raw_info.descr.replace('[quote][/quote]', '').replace('[b][/b]', '').replace(/\n\n+/, '\n\n');
@@ -16265,6 +16315,7 @@ function auto_feed() {
             label_str += $('textarea[name="tr_nfo"]').val();
         }
         var labels = label_str.get_label();
+        correct_hdr10plus_by_mediainfo(labels);   // assast HDR10+ 以 mediainfo 为准,防止主标题虚标 HDR10+ 误勾
         if (raw_info.labels % 2) {
             labels.gy = true;
         }
@@ -31512,6 +31563,7 @@ function auto_feed() {
 
             var label_str = raw_info.small_descr + raw_info.name + raw_info.descr;
             var labels = label_str.get_label();
+            correct_hdr10plus_by_mediainfo(labels);   // assast HDR10+ 以 mediainfo 为准,防止主标题虚标 HDR10+ 误勾
             if (raw_info.labels % 2) {
                 labels.gy = true;
             }
