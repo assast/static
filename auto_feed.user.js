@@ -98,7 +98,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.0.4
+// @version      3.0.5
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -2826,11 +2826,78 @@ String.prototype.get_label = function(){
 function set_selected_option_by_value(my_id, value){
 
     var box = document.getElementById(my_id);
-    for (i=0; i < box.options.length; i++){
-        if ( box.options[i].value == value){
-            box.options[i].selected = true;
+    if (box && box.options) {
+        for (i=0; i < box.options.length; i++){
+            if ( box.options[i].value == value){
+                box.options[i].selected = true;
+            }
         }
+        trigger_upload_field_change(box);
+        return true;
     }
+    return set_upload_select_value(my_id, value);
+}
+
+function trigger_upload_field_change(field) {
+    if (!field) return;
+    try { field.dispatchEvent(evt); } catch(err) {}
+    try {
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+        field.dispatchEvent(new Event('change', { bubbles: true }));
+    } catch(err) {}
+}
+
+function set_upload_select_value(s_name, value) {
+    if (value === undefined || value === null) return false;
+    value = String(value);
+    var box = document.getElementById(s_name);
+    if (box && box.tagName == 'SELECT') {
+        $(box).val(value);
+        trigger_upload_field_change(box);
+        return true;
+    }
+    var select_box = $(`select[name="${s_name}"]`);
+    if (select_box.length) {
+        select_box.val(value);
+        trigger_upload_field_change(select_box[0]);
+        return true;
+    }
+    var input_box = $(`input.ui-dropdown-value[name="${s_name}"], input[type="hidden"][name="${s_name}"]`).first();
+    if (!input_box.length) return false;
+
+    var dropdown = input_box.closest('.ui-dropdown');
+    var option = dropdown.find('a[data-value]').filter(function() {
+        return String($(this).attr('data-value')) == value;
+    }).first();
+    if (option.length) {
+        dropdown.find('li').removeClass('is-selected');
+        option.closest('li').addClass('is-selected');
+        dropdown.find('.ui-dropdown-trigger__text').text(option.text().trim());
+        try { option[0].click(); } catch(err) {}
+    }
+    input_box.val(value);
+    trigger_upload_field_change(input_box[0]);
+    return true;
+}
+
+function get_upload_select_value(s_name) {
+    var box = document.getElementById(s_name);
+    if (box) return $(box).val();
+    var select_box = $(`select[name="${s_name}"]`);
+    if (select_box.length) return select_box.val();
+    var input_box = $(`input.ui-dropdown-value[name="${s_name}"], input[type="hidden"][name="${s_name}"]`).first();
+    if (input_box.length) return input_box.val();
+    return undefined;
+}
+
+function upload_value_box(s_name) {
+    return {
+        val: function(value) {
+            if (arguments.length === 0) return get_upload_select_value(s_name);
+            set_upload_select_value(s_name, value);
+            return this;
+        }
+    };
 }
 
 //副标题增加原盘版本信息
@@ -5166,20 +5233,43 @@ function check_team(raw_info, s_name, forward_site) {
         $(`select[name="team_sel"]>option:eq(11)`).attr('selected', true);
         return;
     }
-    $(`select[name="${s_name}"]>option`).map(function(index,e){
+    var select_options = $(`select[name="${s_name}"]>option`);
+    if (select_options.length) {
+        select_options.map(function(index,e){
+            var name = raw_info.name.split(/(19|20)\d{2}/).pop();
+            if (name.toLowerCase().match(e.innerText.toLowerCase())) {
+                if ((name.match(/PSY|LCHD/) && e.innerText == 'CHD') || (name.match(/PandaMoon/) && e.innerText == 'Panda') || e.innerText == 'DIY' || e.innerText == 'REMUX' || e.innerText == 'RL') {
+                    console.log('小组名貌似会产生误判');
+                    return;
+                } else if (name.match(/HDSpace/i) && e.innerText.match(/HDS/i)) {
+                    return;
+                } else if (name.match(/HDClub/i) && e.innerText.match(/HDC/i)) {
+                    return;
+                } else if (name.match(/REPACK/i) && e.innerText.match(/PACK/i)) {
+                    return;
+                } else {
+                    $(`select[name^="${s_name}"]>option:eq(${index})`).attr('selected', true);
+                }
+            }
+        });
+        return;
+    }
+    var dropdown_options = $(`input.ui-dropdown-value[name="${s_name}"], input[type="hidden"][name="${s_name}"]`).first().closest('.ui-dropdown').find('a[data-value]');
+    dropdown_options.map(function(index,e){
         var name = raw_info.name.split(/(19|20)\d{2}/).pop();
-        if (name.toLowerCase().match(e.innerText.toLowerCase())) {
-            if ((name.match(/PSY|LCHD/) && e.innerText == 'CHD') || (name.match(/PandaMoon/) && e.innerText == 'Panda') || e.innerText == 'DIY' || e.innerText == 'REMUX' || e.innerText == 'RL') {
+        var team_text = e.innerText.trim();
+        if (name.toLowerCase().match(team_text.toLowerCase())) {
+            if ((name.match(/PSY|LCHD/) && team_text == 'CHD') || (name.match(/PandaMoon/) && team_text == 'Panda') || team_text == 'DIY' || team_text == 'REMUX' || team_text == 'RL') {
                 console.log('小组名貌似会产生误判');
                 return;
-            } else if (name.match(/HDSpace/i) && e.innerText.match(/HDS/i)) {
+            } else if (name.match(/HDSpace/i) && team_text.match(/HDS/i)) {
                 return;
-            } else if (name.match(/HDClub/i) && e.innerText.match(/HDC/i)) {
+            } else if (name.match(/HDClub/i) && team_text.match(/HDC/i)) {
                 return;
-            } else if (name.match(/REPACK/i) && e.innerText.match(/PACK/i)) {
+            } else if (name.match(/REPACK/i) && team_text.match(/PACK/i)) {
                 return;
             } else {
-                $(`select[name^="${s_name}"]>option:eq(${index})`).attr('selected', true);
+                set_upload_select_value(s_name, $(e).attr('data-value'));
             }
         }
     });
@@ -18556,13 +18646,15 @@ function auto_feed() {
         }
 
         else if (forward_site == 'PThome' || forward_site == 'Audiences'){
-            var browsecat = $('#browsecat');
+            var browsecat_field = forward_site == 'Audiences' ? 'type' : 'browsecat';
+            var browsecat = forward_site == 'Audiences' ? upload_value_box(browsecat_field) : $('#browsecat');
             if (forward_site == 'PThome') {
                 var type_dict = {'电影': 401, '剧集': 402, '动漫': 405, '综艺': 403, '音乐': 408, '纪录': 404,
                                  '体育': 407, '软件': 411, '学习': 412, '游戏': 410, 'MV': 408,};
             } else {
                 var type_dict = {'电影': 401, '剧集': 402, '动漫': 409, '综艺': 403, '音乐': 408, '纪录': 406,
-                                 '体育': 407, '软件': 411, '学习': 412, '游戏': 410, '书籍': 405, 'MV': 108};
+                                 '体育': 407, '软件': 409, '学习': 412, '游戏': 410, '书籍': 405, '有声小说': 404,
+                                 '短剧': 402, 'MV': 408};
                 if (raw_info.type == '动漫') {
                     type_dict['动漫'] = 401;
                     if (raw_info.name.match(/S\d+|E\d+/) || raw_info.descr.match(/◎集.*?数.*?\d+/)) {
@@ -18580,7 +18672,8 @@ function auto_feed() {
                 browsecat.val(index);
             }
 
-            document.getElementById('browsecat').dispatchEvent(evt);
+            var browsecat_node = document.getElementById('browsecat');
+            if (browsecat_node) browsecat_node.dispatchEvent(evt);
 
             if (raw_info.type == '书籍' && forward_site == 'PThome') {
                 $('#specialcat').val(508);
@@ -18595,7 +18688,7 @@ function auto_feed() {
                 browsecat.val(404);
             }
 
-            var medium_box = $('select[name="medium_sel"]');
+            var medium_box = forward_site == 'Audiences' ? upload_value_box('medium_sel') : $('select[name="medium_sel"]');
             medium_box.val(11);
             switch(raw_info.medium_sel){
                 case 'UHD':
@@ -18621,7 +18714,7 @@ function auto_feed() {
             }
 
             //视频编码
-            var codec_box = $('select[name="codec_sel"]');
+            var codec_box = forward_site == 'Audiences' ? upload_value_box('codec_sel') : $('select[name="codec_sel"]');
             codec_box.val(5);
             switch (raw_info.codec_sel){
                 case 'H265': case 'X265': codec_box.val(6); break;
@@ -18632,7 +18725,7 @@ function auto_feed() {
             }
 
             //音频编码
-            var audiocodec_box = $('select[name="audiocodec_sel"]');
+            var audiocodec_box = forward_site == 'Audiences' ? upload_value_box('audiocodec_sel') : $('select[name="audiocodec_sel"]');
             audiocodec_box.val(7);
             console.log(raw_info.audiocodec_sel)
             if (forward_site == 'PThome') {
@@ -18670,17 +18763,28 @@ function auto_feed() {
                     case 'M4A': audiocodec_box.val(24);
                 }
             }
-            $('select[name="team_sel"]').val("5");
+            set_upload_select_value('team_sel', "5");
             check_team(raw_info, 'team_sel');
 
             //分辨率
-            var standard_box = document.getElementsByName('standard_sel')[0];
-            var standard_dict = {
-                '8K': 1, '4K': 2, '1080p': 3, '1080i': 4, '720p': 5, 'SD': 6, '': 7
-            };
-            if (standard_dict.hasOwnProperty(raw_info.standard_sel)){
-                var index = standard_dict[raw_info.standard_sel];
-                standard_box.options[index].selected = true;
+            if (forward_site == 'Audiences') {
+                var standard_dict = {
+                    '8K': '10', '4K': '5', '1080p': '1', '1080i': '2', '720p': '3', 'SD': '4', '': '11'
+                };
+                if (standard_dict.hasOwnProperty(raw_info.standard_sel)){
+                    var index = standard_dict[raw_info.standard_sel];
+                    set_upload_select_value('standard_sel', index);
+                }
+            } else {
+                var standard_box = document.getElementsByName('standard_sel')[0];
+                var standard_dict = {
+                    '8K': 1, '4K': 2, '1080p': 3, '1080i': 4, '720p': 5, 'SD': 6, '': 7
+                };
+                if (standard_dict.hasOwnProperty(raw_info.standard_sel) && standard_box){
+                    var index = standard_dict[raw_info.standard_sel];
+                    standard_box.options[index].selected = true;
+                    trigger_upload_field_change(standard_box);
+                }
             }
         }
 
