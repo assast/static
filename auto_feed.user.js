@@ -11,7 +11,7 @@
 // @match        https://nzbs.in/*
 // @match        http*://*/detail*.php*
 // @match        http*://*/upload*php*
-// @match        https://pixhost.cc*
+// @match        https://pixhost.to*
 // @match        https://*/upload/*
 // @match        https://*.open.cd/plugin_upload.php*
 // @match        https://www.myanonamouse.net/t/*
@@ -98,7 +98,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.0.5
+// @version      3.0.6
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -574,7 +574,7 @@ if (site_url.match(/^https?:\/\/ptpimg.me/)) {
     return;
 }
 
-if (site_url.match(/^https?:\/\/.*(imgbox.com|imagebam.co|pixhost.cc|img.hdbits.org).?$/)) {
+if (site_url.match(/^https?:\/\/.*(imgbox.com|imagebam.co|pixhost.to|img.hdbits.org).?$/)) {
     var images = GM_getValue('HDB_images') !== undefined ? GM_getValue('HDB_images').split(', '): '';
     if (images && $('input[name="files[]"]').length) {
         $('div.visible-desktop:first').find('span:first').append(`<br><br><input type="button" value="拉取图片" id="add_images"/>`);
@@ -604,7 +604,7 @@ if (site_url.match(/^https?:\/\/.*(imgbox.com|imagebam.co|pixhost.cc|img.hdbits.
             });
         });
     }
-    if (site_url.match(/pixhost.cc|img.hdbits.org/)) {
+    if (site_url.match(/pixhost.to|img.hdbits.org/)) {
         if (images.length && images[0]) {
             $('div.logo').append(`<br><br><input type="button" value="拉取图片" id="add_images"/>`);
             $('#header').after(`<br><br><div align="center"><input type="button" value="拉取图片" id="add_images"/></div>`);
@@ -1712,7 +1712,7 @@ function pix_send_images(urls) {
         return new Promise(function(resolve, reject) {
             GM_xmlhttpRequest({
                 "method": "POST",
-                "url": "https://pixhost.cc/remote/",
+                "url": "https://pixhost.to/remote/",
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded",
                     "Accept": "application/json",
@@ -3236,7 +3236,7 @@ const skip_img = [
     '[img]https://pic.imgdb.cn/item/6170004c2ab3f51d91c7782a.png[/img]',
     '[img]https://img.pterclub.net/images/CS.png[/img]',
     '[img]https://img.pterclub.net/images/2022/10/19/1.gif[/img]',
-    '[img]https://img93.pixhost.cc/images/86/435614074_c5134549f13c2c087d67c9fa4089c49e-removebg-preview.png[/img]'
+    '[img]https://img93.pixhost.to/images/86/435614074_c5134549f13c2c087d67c9fa4089c49e-removebg-preview.png[/img]'
 ];
 
 //从简介拆分出来mediainfo和截图
@@ -3358,7 +3358,7 @@ function correct_hdr10plus_by_mediainfo(labels) {
 function fill_raw_info(raw_info, forward_site){
     raw_info.descr = raw_info.descr.replace(/%3A/g, ':').replace(/%2F/g, "/");
     raw_info.descr = raw_info.descr.replace('[quote][/quote]', '').replace('[b][/b]', '').replace(/\n\n+/, '\n\n');
-    raw_info.descr = raw_info.descr.replace('https://pic.imgdb.cn/item/6170004c2ab3f51d91c77825.png', 'https://img93.pixhost.cc/images/86/435614074_c5134549f13c2c087d67c9fa4089c49e-removebg-preview.png');
+    raw_info.descr = raw_info.descr.replace('https://pic.imgdb.cn/item/6170004c2ab3f51d91c77825.png', 'https://img93.pixhost.to/images/86/435614074_c5134549f13c2c087d67c9fa4089c49e-removebg-preview.png');
     raw_info.descr = raw_info.descr.replace(/引用.{0,5}\n/g, '');
     raw_info.descr = raw_info.descr.replace(/.*ARDTU.*/g, '');
     //标题肯定都有，副标题可能没有，从简介获取
@@ -3742,7 +3742,7 @@ function init_buttons_for_transfer(container, site, mode, raw_info) {
             if (raw_info.images.length > 0) {
                 raw_info.images.push(raw_info.name.replace(/ /g, '.'));
                 GM_setValue('HDB_images', raw_info.images.join(', '));
-                window.open('https://pixhost.cc/', '_blank');
+                window.open('https://pixhost.to/', '_blank');
             } else {
                 alert('请选择要转存的图片！！！')
             }
@@ -8114,7 +8114,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
                     } catch(err) {}
                     images.push(name);
                     GM_setValue('HDB_images', images.join(', '));
-                    window.open('https://pixhost.cc/', '_blank');
+                    window.open('https://pixhost.to/', '_blank');
                 } else {
                     pix_send_images(images)
                         .then(function(new_urls) {
@@ -9125,11 +9125,11 @@ async function transferToPixhost(imgUrl) {
         formData.append('ajax', `yes`);
         GM_xmlhttpRequest({
             method: "POST",
-            url: "https://pixhost.cc/new-upload/",
+            url: "https://pixhost.to/new-upload/",
             data: formData,
             headers: {
-                "Origin": "https://pixhost.cc",
-                "Referer": "https://pixhost.cc/",
+                "Origin": "https://pixhost.to",
+                "Referer": "https://pixhost.to/",
                 "User-Agent": window.navigator.userAgent
             },
             onload: (res) => {
