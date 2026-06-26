@@ -98,7 +98,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.0.6
+// @version      3.0.8
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -2935,7 +2935,10 @@ function get_small_descr_from_descr(descr, name){
         videoname = videoname.trim(); //去除首尾空格
         try{
             movie_name = descr.match(/片.*?名([^\r\n]+)/)[1].split('/')[0].trim();
-            if (/[\u4e00-\u9fa5]/.test(movie_name) && movie_name && videoname.indexOf(movie_name) === -1) {
+            // Dedup against full '/'-split items, not a substring indexOf: a movie title that is a
+            // substring of a longer alias item must NOT be wrongly treated as already present.
+            var videoname_items = videoname.split('/').map(function(s){ return s.trim(); });
+            if (/[\u4e00-\u9fa5]/.test(movie_name) && movie_name && videoname_items.indexOf(movie_name) === -1) {
                 videoname = movie_name + ' / ' + videoname;
             }
         } catch (err) {}
@@ -13454,7 +13457,11 @@ function auto_feed() {
                 try {
                     var tr = $('td:contains(标签)').last().parent();
                     if (origin_site == 'CMCT') {
-                        tr = $('td:contains(标签)').first().parent();
+                        // SSD"相关资源"比较表(#krelated)自带"标签"列, 且含同片其它版本种子的中字/国语等标签;
+                        // 本种无标签行时旧的 .first() 会落到比较表, 把别人的中字误当成本种 -> 排除 #krelated 内/含 #krelated 的 td
+                        tr = $('td:contains(标签)').filter(function(){
+                            return !$(this).closest('#krelated').length && !$(this).has('#krelated').length;
+                        }).first().parent();
                     }
                     if (origin_site == 'HHClub') {
                         tr = $('div:contains(标签)').last().next();
@@ -14059,7 +14066,7 @@ function auto_feed() {
             }
         } else if (origin_site == 'HDB' && $('div.torrent-title>span.exclusive').length) {
             if_exclusive = true;
-        } else if (origin_site == 'CMCT' && $('span:contains("禁转")').length) {
+        } else if (origin_site == 'CMCT' && $('span:contains("禁转")').not('#krelated span').length) {
             if_exclusive = true;
         }
 
