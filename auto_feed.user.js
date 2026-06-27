@@ -98,7 +98,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.0.8
+// @version      3.0.9
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -27981,7 +27981,7 @@ function auto_feed() {
                 case 'DTS-HD': case 'DTS-HDMA:X 7.1': case 'DTS-HDMA': case 'DTS':
                     audiocodec_box.val('DTS'); break;
                 case 'TrueHD': case 'Atmos':
-                    audiocodec_box.val('True-HD'); break;
+                    audiocodec_box.val('TrueHD'); break;
                 case 'LPCM':
                     audiocodec_box.val('PCM'); break;
                 case 'AC3':
@@ -27992,6 +27992,11 @@ function auto_feed() {
                     audiocodec_box.val('FLAC'); break;
                 case 'MP3':
                     audiocodec_box.val('MP3'); break;
+            }
+            // DDP (Dolby Digital Plus / E-AC-3) is misdetected as AC3 by audiocodec_sel()'s [ .]DD rule;
+            // ANT has a dedicated EAC3 option, so correct it from the release name (same pattern other sites use).
+            if (raw_info.audiocodec_sel == 'AC3' && raw_info.name.match(/DDP|DD\+|E-?AC-?3/i)) {
+                audiocodec_box.val('EAC3');
             }
             if (raw_info.name.match(/Atmos/i)){
                 $('input[value=Atmos]').attr('checked', true);
