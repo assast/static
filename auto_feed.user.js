@@ -98,7 +98,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.0.9
+// @version      3.0.10
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -3088,7 +3088,7 @@ function check_descr(descr){
 //     并兼容 http/https、images.weserv.nl 以及 percent-encoded 的内层链接。
 function strip_img_proxy(text) {
     if (!text) return text;
-    return text.replace(/https?:\/\/(?:images\.)?(?:wsrv|weserv)\.nl\/\?[^\[\]\s'"]*?url=([^\[\]\s'"]*)/gi, function (m, inner) {
+    return text.replace(/https?:\/\/(?:(?:images\.)?(?:wsrv|weserv)\.nl|wsrv\.aither\.cc)\/\?[^\[\]\s'"]*?url=([^\[\]\s'"]*)/gi, function (m, inner) {
         try {
             return /%[0-9A-Fa-f]{2}/.test(inner) ? decodeURIComponent(inner) : inner;
         } catch (e) {
