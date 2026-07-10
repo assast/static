@@ -98,7 +98,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.0.10
+// @version      3.1.0
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -2055,6 +2055,7 @@ const reg_team_name = {
     'HDHome': /(-hdh|.*@HDHome)/i,
     'PThome': /(-pthome|-pth|.*@pth)/i,
     'Audiences': /(-Audies|.*@Audies|-ADE|-ADWeb|.*@ADWeb)/i,
+    'DepthStudio': /-(DStudio|DepWeb|DS)$/i,
     'PTLGS': /(-PTLGS|.*@PTLGS)/i,
     'PuTao': /-putao/i,
     'NanYang': /-nytv/i,
@@ -2778,7 +2779,7 @@ String.prototype.source_sel = function() {
 String.prototype.get_label = function(){
     var my_string = this.toString();
     var name = my_string.split('#separator#')[0];
-    var labels = {'gy': false, 'yy': false, 'zz': false, 'diy': false, 'hdr10': false, 'db': false, 'hdr10plus': false, 'yz': false, 'en': false, 'yp': false, 'hdr': false};
+    var labels = {'gy': false, 'yy': false, 'zz': false, 'diy': false, 'hdr10': false, 'db': false, 'hdr10plus': false, 'yz': false, 'en': false, 'yp': false, 'hdr': false, 'ry': false, 'hy': false};
 
     if (my_string.match(/([简繁].{0,12}字幕|[简繁中].{0,3}字|简中|DIY.{1,5}字|内封.{0,3}[繁中字])|(Text.*?[\s\S]*?Chinese|Text.*?[\s\S]*?Mandarin|subtitles.*chs|subtitles.*mandarin|subtitle.*chinese|Presentation Graphics.*?Chinese)/i)){
         labels.zz = true;
@@ -2817,7 +2818,14 @@ String.prototype.get_label = function(){
     } else if (my_string.match(/HDR/)) {
         labels.hdr = true;
     }
-    if (my_string.match(/Dolby Vision|杜比视界/i)){
+    // 日语/韩语只按音轨信息识别，避免把字幕语言误当成音轨标签。
+    if (my_string.match(/Audio(?:(?!\r?\nText\b)[\s\S])*?Language\s*:?\s*(Japanese|日语|日文)/i) || name.match(/\b(Japanese|JPN)\s+Audio\b/i)) {
+        labels.ry = true;
+    }
+    if (my_string.match(/Audio(?:(?!\r?\nText\b)[\s\S])*?Language\s*:?\s*(Korean|韩语|韩文)/i) || name.match(/\b(Korean|KOR)\s+Audio\b/i)) {
+        labels.hy = true;
+    }
+    if (my_string.match(/Dolby[ ._-]*Vision|杜比视界|\bDoVi\b|\bDV\b/i)){
         labels.db = true;
     }
     return labels;
@@ -19453,13 +19461,14 @@ function auto_feed() {
             //音频编码
             var audiocodec_box = $('select[name="audiocodec_sel"]');
             switch (raw_info.audiocodec_sel){
-                case 'DTS-HDMA:X 7.1': audiocodec_box.val(15);
+                case 'DTS-HDMA:X 7.1': audiocodec_box.val(15); break;
                 case 'DTS-HD': case 'DTS-HDMA': case 'DTS-HDHR': audiocodec_box.val(1); break;
                 case 'Atmos': case 'TrueHD': audiocodec_box.val(2); break;
                 case 'LPCM': audiocodec_box.val(3); break;
                 case 'DTS': audiocodec_box.val(4); break;
                 case 'AC3': audiocodec_box.val(5); break;
                 case 'AAC': audiocodec_box.val(6); break;
+                case 'Opus': case 'OPUS': audiocodec_box.val(13); break;
                 case 'Flac': audiocodec_box.val(7); break;
                 case 'APE': audiocodec_box.val(8); break;
                 case 'WAV': audiocodec_box.val(9); break;
