@@ -3326,7 +3326,7 @@ function get_mediainfo_for_hdr() {
         var ex = get_mediainfo_picture_from_descr(raw_info.descr).mediainfo;
         if (ex) { mi += ex + '\n'; }
     } catch (e) {}
-    ['technical_info', 'mediainfo'].forEach(function (n) {
+    ['technical_info', 'mediainfo', 'media_info'].forEach(function (n) {
         try {
             var el = document.getElementsByName(n);
             if (el && el.length && el[0].value) { mi += el[0].value + '\n'; }
@@ -16411,6 +16411,10 @@ function auto_feed() {
 
         //-------------------------------------------勾选国语粤语中字等标签--------------------------------------------------------
         var label_str = raw_info.small_descr + raw_info.name + '#separator#' + raw_info.descr;
+        // 完整 MediaInfo 可能与简介分开保存；语言音轨通常只存在于这里。
+        if (raw_info.full_mediainfo) {
+            label_str += '\n' + raw_info.full_mediainfo;
+        }
         if ($('textarea[name="technical_info"]').length) {
             label_str += $('textarea[name="technical_info"]').val();
         } else if ($('textarea[name="mediainfo"]').length) {
