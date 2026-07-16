@@ -98,7 +98,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.1.2
+// @version      3.1.3
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -4741,6 +4741,55 @@ function refine_type_from_ptgen(info, ptgen_info) {
             info.type = '剧集';
         }
     }
+}
+
+function get_cmct_extra_info(descr, extra_text) {
+    var text = String(descr || '');
+    var parts = [];
+    var boundary = text.search(/◎\s*(?:译\s*名|片\s*名|原\s*名|年\s*代|产\s*地|類\s*別|类\s*别)/i);
+    if (boundary < 0) {
+        boundary = text.search(/\[quote(?:=[^\]]*)?\]\s*(?:General|DISC INFO|QUICK SUMMARY|RELEASE[ .]NAME|Unique ID|Complete name)/i);
+    }
+
+    if (boundary >= 0) {
+        var prefix = text.slice(0, boundary);
+        var image_pattern = /(?:\[url=[^\]]+\])?\[img\][\s\S]*?\[\/img\](?:\[\/url\])?/ig;
+        var image_match;
+        var last_image;
+        while ((image_match = image_pattern.exec(prefix)) !== null) {
+            last_image = {
+                index: image_match.index,
+                length: image_match[0].length
+            };
+        }
+        if (last_image && prefix.length - last_image.index - last_image.length < 300) {
+            prefix = prefix.slice(0, last_image.index) + prefix.slice(last_image.index + last_image.length);
+        }
+        prefix = prefix.trim().replace(/\n{3,}/g, '\n\n');
+        if (prefix) {
+            parts.push(prefix);
+        }
+    }
+
+    if (!parts.length && extra_text) {
+        parts.push(String(extra_text).trim());
+    }
+    if (!parts.length) {
+        var thanks = text.match(/\[quote(?:=[^\]]*)?\][\s\S]*?感谢原制作者发布。[\s\S]*?\[\/quote\]/i);
+        if (thanks) {
+            parts.push(thanks[0].trim());
+        }
+    }
+
+    var quote_pattern = /\[quote(?:=[^\]]*)?\][\s\S]*?\[\/quote\]/ig;
+    var quote_match;
+    while ((quote_match = quote_pattern.exec(text)) !== null) {
+        if (/\.Release\.Info/i.test(quote_match[0]) && /\.(?:Media|x26[45])\.Info/i.test(quote_match[0])) {
+            parts.push(quote_match[0].trim());
+            break;
+        }
+    }
+    return parts.join('\n\n').trim();
 }
 
 function after_douban(douban_info, is_douban_needed) {
@@ -18055,7 +18104,7 @@ function auto_feed() {
             if(descr_box[1].value.indexOf('Report created by') > 0){
                 descr_box[1].value = descr_box[1].value.substring(0, descr_box[1].value.indexOf('Report created by'));
             }
-            descr_box[2].value = raw_info.descr;
+            descr_box[2].value = get_cmct_extra_info(raw_info.descr, raw_info.extra_text);
             var clear = document.createElement('input');
             clear.type = 'button';
             clear.value = " 清空附加信息 ";
