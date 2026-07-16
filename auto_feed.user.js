@@ -98,7 +98,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.1.1
+// @version      3.1.2
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -4715,6 +4715,34 @@ function page_parser(responseText) {
     return (new DOMParser()).parseFromString(responseText, 'text/html');
 }
 
+function refine_type_from_ptgen(info, ptgen_info) {
+    if (!info || !ptgen_info) {
+        return;
+    }
+
+    var text = String(ptgen_info)
+        .replace(/\[[^\]]*\]/g, '')
+        .replace(/&nbsp;/ig, ' ')
+        .replace(/\u3000/g, ' ');
+    var genre_match = text.match(/类\s*别\s*[:：]?\s*([^\r\n]+)/i);
+    var genres = genre_match ? genre_match[1] : '';
+
+    if (/纪录片|Documentary/i.test(genres)) {
+        info.type = '纪录';
+    } else if (/动画|Animation|Anime/i.test(genres)) {
+        info.type = '动漫';
+    } else if (/真人秀|脱口秀|综艺|Reality[- ]?TV|Game[- ]?Show|Talk[- ]?Show|Variety/i.test(genres)) {
+        info.type = '综艺';
+    } else if (info.type == '综艺') {
+        var has_episode_info = /(?:^|\n)\s*◎?\s*(?:集\s*数|单集\s*片长|首\s*播|季\s*数)\s*[:：]?\s*\S+/im.test(text);
+        var has_season = /(?:^|[\s._-])S\d{1,3}(?:E\d{1,3})?(?=$|[\s._-])/i.test(info.name || '');
+        var has_scripted_genre = /剧情|喜剧|动作|爱情|科幻|悬疑|惊悚|恐怖|犯罪|奇幻|冒险|战争|历史|古装|家庭|儿童|Drama|Comedy|Action|Romance|Sci-Fi|Science Fiction|Mystery|Thriller|Horror|Crime|Fantasy|Adventure|War|History|Family/i.test(genres);
+        if (has_episode_info || (has_season && has_scripted_genre)) {
+            info.type = '剧集';
+        }
+    }
+}
+
 function after_douban(douban_info, is_douban_needed) {
     douban_info = douban_info.replace("[/img][/center]", "[/img]");
     douban_info = douban_info.replace("hongleyou.cn", "doubanio.com");
@@ -4729,11 +4757,7 @@ function after_douban(douban_info, is_douban_needed) {
         if (is_douban_needed && raw_info.descr.match(/http(s*):\/\/www.imdb.com\/title\/tt(\d+)/i)){
             raw_info.url = raw_info.descr.match(/http(s*):\/\/www.imdb.com\/title\/tt(\d+)/i)[0] + '/';
         }
-        if (raw_info.descr.match(/类[\s\S]{0,5}别[\s\S]{0,30}纪录片/i)) {
-            raw_info.type = '纪录';
-        } else if (raw_info.descr.match(/类[\s\S]{0,5}别[\s\S]{0,30}动画/i)) {
-            raw_info.type = '动漫';
-        }
+        refine_type_from_ptgen(raw_info, douban_info);
         set_jump_href(raw_info, 1);
         jump_str = dictToString(raw_info);
         $('#douban_button').val('获取成功');
@@ -9175,11 +9199,7 @@ function get_douban_info(raw_info) {
                 if (raw_info.descr.match(/http(s*):\/\/www.imdb.com\/title\/tt(\d+)/i)){
                     raw_info.url = raw_info.descr.match(/http(s*):\/\/www.imdb.com\/title\/tt(\d+)/i)[0] + '/';
                 }
-                if (raw_info.descr.match(/类[\s\S]{0,5}别[\s\S]{0,30}纪录片/i)) {
-                    raw_info.type = '纪录';
-                } else if (raw_info.descr.match(/类[\s\S]{0,5}别[\s\S]{0,30}动画/i)) {
-                    raw_info.type = '动漫';
-                }
+                refine_type_from_ptgen(raw_info, data);
                 set_jump_href(raw_info, 1);
                 douban_button.value = '获取成功';
                 $('#textarea').val(data);
