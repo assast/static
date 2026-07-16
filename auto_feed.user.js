@@ -98,7 +98,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.1.3
+// @version      3.1.4
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -4743,7 +4743,113 @@ function refine_type_from_ptgen(info, ptgen_info) {
     }
 }
 
-function get_cmct_extra_info(descr, extra_text) {
+function cmct_is_inside_spoiler(text, index) {
+    var prefix = String(text || '').slice(0, index).toLowerCase();
+    return prefix.lastIndexOf('[spoiler') > prefix.lastIndexOf('[/spoiler]');
+}
+
+function organize_cmct_extra_info(extra_info) {
+    var text = String(extra_info || '')
+        .replace(/\[code(?:=[^\]]*)?\]/ig, '[quote]')
+        .replace(/\[\/code\]/ig, '[/quote]');
+
+    text = text.replace(/\[quote(?:=[^\]]*)?\][\s\S]*?\[\/quote\]/ig, function(block, offset, source) {
+        if (/\.Release\.Info/i.test(block) && /\.(?:Media|x26[45])\.Info/i.test(block) && !cmct_is_inside_spoiler(source, offset)) {
+            return `[spoiler=.Release.Info]${block}[/spoiler]`;
+        }
+        return block;
+    });
+
+    text = text.replace(/\[comparison=([^\]]+)\]([\s\S]*?)\[\/comparison\]/ig, function(block, title, content, offset, source) {
+        if (cmct_is_inside_spoiler(source, offset)) {
+            return block;
+        }
+        var spoiler_title = title.trim();
+        if (!/Comparison$/i.test(spoiler_title)) {
+            spoiler_title += ' Comparison';
+        }
+        return `[spoiler=${spoiler_title}]${block}[/spoiler]`;
+    });
+
+    return text.trim().replace(/\n{3,}/g, '\n\n');
+}
+
+function format_cmct_extra_bdinfo(bdinfo, fallback_title) {
+    var lines = String(bdinfo || '').replace(/\u00a0/g, ' ').split(/\r?\n/).map(function(line) {
+        return line.trimEnd();
+    }).filter(function(line, index, all_lines) {
+        return line.trim() || (index > 0 && index < all_lines.length - 1);
+    });
+    while (lines.length && !lines[0].trim()) {
+        lines.shift();
+    }
+    while (lines.length && !lines[lines.length - 1].trim()) {
+        lines.pop();
+    }
+    if (!lines.length) {
+        return '';
+    }
+
+    var title = fallback_title || 'Alternate BDInfo';
+    var disc_title = lines[0].trim().match(/^Disc Title\s*:\s*(.+)$/i);
+    if (disc_title) {
+        title = disc_title[1].trim();
+        lines.shift();
+    } else if (!/^(?:Disc (?:Label|Size)|Protection|Playlist|Size|Length|Total Bitrate|Video|Audio|Subtitle|QUICK SUMMARY|DISC INFO)\s*:/i.test(lines[0].trim())) {
+        title = lines.shift().trim();
+    }
+    title = title.replace(/[\[\]]/g, '').trim() || 'Alternate BDInfo';
+    return `[spoiler=${title}][quote]${lines.join('\n').trim()}[/quote][/spoiler]`;
+}
+
+function split_cmct_bdinfo_blocks(bdinfo) {
+    var text = String(bdinfo || '').replace(/\r/g, '').replace(/\u00a0/g, ' ').trim();
+    if (!/Disc Label\s*:/i.test(text) || !/Playlist\s*:/i.test(text)) {
+        return [];
+    }
+
+    var lines = text.split('\n');
+    var label_indexes = [];
+    lines.forEach(function(line, index) {
+        if (/^\s*Disc Label\s*:/i.test(line)) {
+            label_indexes.push(index);
+        }
+    });
+    if (label_indexes.length <= 1) {
+        return [text];
+    }
+
+    var starts = label_indexes.map(function(label_index) {
+        var start = label_index;
+        while (start > 0 && lines[start - 1].trim()) {
+            start--;
+        }
+        return start;
+    });
+    starts = starts.filter(function(start, index) {
+        return index == 0 || start != starts[index - 1];
+    });
+    if (starts.length != label_indexes.length) {
+        starts = label_indexes.map(function(label_index) {
+            if (label_index > 0 && !/:/.test(lines[label_index - 1]) && lines[label_index - 1].trim()) {
+                return label_index - 1;
+            }
+            return label_index;
+        });
+    }
+
+    var blocks = starts.map(function(start, index) {
+        var end = index + 1 < starts.length ? starts[index + 1] : lines.length;
+        return lines.slice(start, end).join('\n').trim();
+    }).filter(function(block) {
+        return /Disc Label\s*:/i.test(block) && /Playlist\s*:/i.test(block);
+    });
+    return blocks.filter(function(block, index) {
+        return blocks.indexOf(block) == index;
+    });
+}
+
+function get_cmct_extra_info(descr, extra_text, extra_bdinfo) {
     var text = String(descr || '');
     var parts = [];
     var boundary = text.search(/◎\s*(?:译\s*名|片\s*名|原\s*名|年\s*代|产\s*地|類\s*別|类\s*别)/i);
@@ -4789,7 +4895,17 @@ function get_cmct_extra_info(descr, extra_text) {
             break;
         }
     }
-    return parts.join('\n\n').trim();
+    var comparison_pattern = /\[comparison=[^\]]+\][\s\S]*?\[\/comparison\]/ig;
+    var comparison_match;
+    while ((comparison_match = comparison_pattern.exec(text)) !== null) {
+        if (!parts.join('\n\n').includes(comparison_match[0])) {
+            parts.push(comparison_match[0].trim());
+        }
+    }
+    if (extra_bdinfo) {
+        parts.push(String(extra_bdinfo).trim());
+    }
+    return organize_cmct_extra_info(parts.join('\n\n'));
 }
 
 function after_douban(douban_info, is_douban_needed) {
@@ -9807,14 +9923,29 @@ function auto_feed() {
 
             if (origin_site == 'PThome' || origin_site == 'Audiences' || origin_site == 'OurBits') {
                 try{
-                    var mediainfo1 = document.getElementsByClassName("codemain").pop();
-                    if (origin_site != 'OurBits') {
-                        mediainfo1 = mediainfo1.getElementsByTagName('font')[0];
+                    var audiences_bdinfos = [];
+                    if (origin_site == 'Audiences') {
+                        audiences_bdinfos = Array.from($(descr).find('div.show > div.codemain')).map(function(e) {
+                            return $(e).text().replace(/\u00a0/g, ' ').trim();
+                        }).filter(function(e) {
+                            return /Disc (?:Label|Title|Size)\s*:/i.test(e) && /Playlist\s*:/i.test(e);
+                        });
                     }
-                    mediainfo1 = walkDOM(mediainfo1.cloneNode(true));
-                    mediainfo1 = mediainfo1.replace(/(<div class="codemain">|<\/div>|\[\/?(font|size|color).*?\])/g, '');
-                    mediainfo1 = mediainfo1.replace(/<br>/g, '\n');
-                    raw_info.full_mediainfo=mediainfo1;
+                    if (audiences_bdinfos.length) {
+                        raw_info.full_mediainfo = audiences_bdinfos[0];
+                        raw_info.extra_bdinfo = audiences_bdinfos.slice(1).map(function(info, index) {
+                            return format_cmct_extra_bdinfo(info, `Alternate BDInfo ${index + 2}`);
+                        }).filter(Boolean).join('\n\n');
+                    } else {
+                        var mediainfo1 = document.getElementsByClassName("codemain").pop();
+                        if (origin_site != 'OurBits') {
+                            mediainfo1 = mediainfo1.getElementsByTagName('font')[0];
+                        }
+                        mediainfo1 = walkDOM(mediainfo1.cloneNode(true));
+                        mediainfo1 = mediainfo1.replace(/(<div class="codemain">|<\/div>|\[\/?(font|size|color).*?\])/g, '');
+                        mediainfo1 = mediainfo1.replace(/<br>/g, '\n');
+                        raw_info.full_mediainfo=mediainfo1;
+                    }
                     raw_info.descr = "";
                 } catch(err){
                 }
@@ -13135,6 +13266,26 @@ function auto_feed() {
             var mediainfo_box = $('div[id*="stats-full"]')[0];
             var code_box = mediainfo_box.getElementsByClassName('decoda-code')[0];
             var mediainfo = code_box.textContent.trim();
+            var bhd_main_bdinfos = split_cmct_bdinfo_blocks(mediainfo);
+            var bhd_bdinfos = [];
+            $('.decoda-code').each(function() {
+                split_cmct_bdinfo_blocks($(this).text().trim()).forEach(function(block) {
+                    if (bhd_bdinfos.indexOf(block) < 0) {
+                        bhd_bdinfos.push(block);
+                    }
+                });
+            });
+            if (bhd_main_bdinfos.length && bhd_bdinfos.length) {
+                mediainfo = bhd_bdinfos.shift();
+            }
+            if (bhd_bdinfos.length) {
+                var extra_bhd_bdinfo = bhd_bdinfos.map(function(info, index) {
+                    return format_cmct_extra_bdinfo(info, `Alternate BDInfo ${index + 2}`);
+                }).filter(Boolean).join('\n\n');
+                if (extra_bhd_bdinfo) {
+                    raw_info.extra_bdinfo = [raw_info.extra_bdinfo, extra_bhd_bdinfo].filter(Boolean).join('\n\n');
+                }
+            }
 
             var picture_info = document.getElementsByClassName('decoda-image');
             var img_urls = '';
@@ -13142,6 +13293,7 @@ function auto_feed() {
                 img_urls += '[url='+ picture_info[i].parentNode.href +'][img]' + picture_info[i].src + '[/img][/url] ';
             }
             picture_info = img_urls;
+            raw_info.full_mediainfo = mediainfo;
             raw_info.mediainfo_cmct = mediainfo;
             raw_info.imgs_cmct = img_urls;
             raw_info.descr = '[quote]' + mediainfo + '[/quote]\n\n' + picture_info;
@@ -13189,11 +13341,41 @@ function auto_feed() {
 
         if (origin_site == 'BLU' || origin_site == 'Tik' || origin_site == 'Aither') {
             var mediainfo = '';
+            var description_body = $('h2.panel__heading:contains("Description"), h2.panel__heading:contains("描述")').parent().next();
             try {
-                mediainfo = $('code[x-ref="mediainfo"]').text().trim();
-                if (!mediainfo) {
-                    mediainfo = $('code[x-ref="bdinfo"]').text().trim();
+                var unit3d_bdinfos = [];
+                function append_unit3d_bdinfos(info) {
+                    split_cmct_bdinfo_blocks(info).forEach(function(block) {
+                        if (unit3d_bdinfos.indexOf(block) < 0) {
+                            unit3d_bdinfos.push(block);
+                        }
+                    });
                 }
+                var unit3d_main_bdinfo = $('code[x-ref="bdinfo"]').text().trim();
+                var unit3d_mediainfo = $('code[x-ref="mediainfo"]').text().trim();
+                append_unit3d_bdinfos(unit3d_main_bdinfo);
+                description_body.find('details code').each(function() {
+                    var code_clone = $(this).clone();
+                    code_clone.find('br').replaceWith('\n');
+                    append_unit3d_bdinfos(code_clone.text().trim());
+                });
+
+                if (unit3d_main_bdinfo && unit3d_bdinfos.length) {
+                    mediainfo = unit3d_bdinfos.shift();
+                } else if (unit3d_mediainfo) {
+                    mediainfo = unit3d_mediainfo;
+                } else if (unit3d_bdinfos.length) {
+                    mediainfo = unit3d_bdinfos.shift();
+                }
+                if (unit3d_bdinfos.length) {
+                    var extra_unit3d_bdinfo = unit3d_bdinfos.map(function(info, index) {
+                        return format_cmct_extra_bdinfo(info, `Alternate BDInfo ${index + 2}`);
+                    }).filter(Boolean).join('\n\n');
+                    if (extra_unit3d_bdinfo) {
+                        raw_info.extra_bdinfo = [raw_info.extra_bdinfo, extra_unit3d_bdinfo].filter(Boolean).join('\n\n');
+                    }
+                }
+                raw_info.full_mediainfo = mediainfo;
                 raw_info.descr = `[quote]\n${mediainfo}\n[/quote]`;
             } catch (err) {}
             raw_info.name = $('h1.torrent__name').text().trim();
@@ -13201,7 +13383,7 @@ function auto_feed() {
 
             var img_urls = '';
             try {
-                var picture_info = $('h2.panel__heading:contains("Description"), h2.panel__heading:contains("描述")').parent().next()[0].getElementsByTagName('img');
+                var picture_info = description_body[0].getElementsByTagName('img');
                 for (i = 0; i < picture_info.length; i++){
                     if (picture_info[i].parentNode.href){
                         img_urls += '[url='+ picture_info[i].parentNode.href +'][img]' + picture_info[i].src + '[/img][/url] ';
@@ -18104,7 +18286,48 @@ function auto_feed() {
             if(descr_box[1].value.indexOf('Report created by') > 0){
                 descr_box[1].value = descr_box[1].value.substring(0, descr_box[1].value.indexOf('Report created by'));
             }
-            descr_box[2].value = get_cmct_extra_info(raw_info.descr, raw_info.extra_text);
+            descr_box[2].value = get_cmct_extra_info(raw_info.descr, raw_info.extra_text, raw_info.extra_bdinfo);
+            if (!document.getElementById('cmct_extra_tools')) {
+                var extra_tools = document.createElement('div');
+                extra_tools.id = 'cmct_extra_tools';
+                extra_tools.style.marginBottom = '6px';
+
+                var organize_extra = document.createElement('input');
+                organize_extra.type = 'button';
+                organize_extra.id = 'cmct_organize_extra';
+                organize_extra.value = '整理附加信息';
+                organize_extra.title = '代码转引用，并为对比图和 Release Info 添加折叠标签';
+                extra_tools.appendChild(organize_extra);
+
+                var append_menu = document.createElement('input');
+                append_menu.type = 'button';
+                append_menu.id = 'cmct_append_menu';
+                append_menu.value = '菜单代码';
+                append_menu.title = '在附加信息末尾添加 DISC MENU 折叠标签';
+                append_menu.style.marginLeft = '6px';
+                extra_tools.appendChild(append_menu);
+
+                descr_box[2].parentNode.insertBefore(extra_tools, descr_box[2]);
+                $('#cmct_extra_tools input').css({
+                    'color': '#202020',
+                    'background': '#f2f2f2',
+                    'border': '1px solid #707070',
+                    'border-radius': '3px',
+                    'padding': '3px 10px',
+                    'font-weight': 'bold',
+                    'cursor': 'pointer'
+                });
+
+                $('#cmct_organize_extra').click(function() {
+                    descr_box[2].value = organize_cmct_extra_info(descr_box[2].value);
+                });
+                $('#cmct_append_menu').click(function() {
+                    var menu_code = '[spoiler=DISC MENU][/spoiler]';
+                    if (!descr_box[2].value.includes(menu_code)) {
+                        descr_box[2].value = (descr_box[2].value.trim() + '\n\n' + menu_code).trim();
+                    }
+                });
+            }
             var clear = document.createElement('input');
             clear.type = 'button';
             clear.value = " 清空附加信息 ";
