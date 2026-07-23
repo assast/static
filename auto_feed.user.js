@@ -98,7 +98,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.1.4
+// @version      3.1.5
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -1420,6 +1420,35 @@ const origin_site = find_origin_site(site_url);
 
 const douban_prex = 'https://movie.douban.com/subject/';
 const imdb_prex = 'https://www.imdb.com/title/';
+
+// 规范化豆瓣 subject 链接：源站常写成 https://douban.com/subject/{id}（缺 movie.），
+// 部分目标站 pt_gen / 豆瓣字段会因此解析失败。统一成 https://movie.douban.com/subject/{id}/。
+// 只修 host 为 movie.douban.com / douban.com / www.douban.com 的链接；
+// 正则要求 host 紧跟在 :// 或字符串开头之后，避免误伤 book/music 等子域。
+function normalize_douban_url(url) {
+    if (!url) return '';
+    var s = String(url).trim();
+    var m = s.match(/https?:\/\/movie\.douban\.com\/subject\/(\d+)/i)
+        || s.match(/^movie\.douban\.com\/subject\/(\d+)/i);
+    if (m) return douban_prex + m[1] + '/';
+    // 缺 movie.：https://douban.com/... 或 https://www.douban.com/...
+    m = s.match(/https?:\/\/(?:www\.)?douban\.com\/subject\/(\d+)/i)
+        || s.match(/^(?:www\.)?douban\.com\/subject\/(\d+)/i);
+    if (m) return douban_prex + m[1] + '/';
+    // 纯数字 id（有些表单/手填只给 id）
+    m = s.match(/^(\d{5,10})$/);
+    if (m) return douban_prex + m[1] + '/';
+    return s;
+}
+
+// 把简介正文里缺 movie. 的豆瓣链接一并改写（不影响 book/music 子域）
+function fix_broken_douban_links_in_text(text) {
+    if (!text) return text || '';
+    return String(text).replace(
+        /https?:\/\/(?:www\.)?douban\.com\/subject\/(\d+)\/?/gi,
+        function(_, id) { return douban_prex + id + '/'; }
+    );
+}
 
 //iTS的简介模板，用于获取数据替换后填充
 const its_base_content = `
@@ -3397,11 +3426,16 @@ function fill_raw_info(raw_info, forward_site){
             raw_info.url = url[0] + '/';
         }
     }
-    if (raw_info.dburl == ''){
-        var dburl = raw_info.descr.match(/http(s*):\/\/.*?douban.com\/subject\/(\d+)/i);
-        if (dburl){
-            raw_info.dburl = dburl[0] + '/';
-        }
+    // 豆瓣链接：统一规范化（修 https://douban.com/subject/ 缺 movie.）
+    // 已有 dburl 也走一遍，避免源站写错后被原样带到目标站
+    if (raw_info.dburl) {
+        raw_info.dburl = normalize_douban_url(raw_info.dburl) || match_link('douban', raw_info.dburl) || raw_info.dburl;
+    } else {
+        raw_info.dburl = match_link('douban', raw_info.descr);
+    }
+    // 简介正文里同样的错误链接一并修掉，避免目标站再从 descr 二次解析踩坑
+    if (raw_info.descr) {
+        raw_info.descr = fix_broken_douban_links_in_text(raw_info.descr);
     }
 
     raw_info.tracklist = raw_info.tracklist.replace(/\t/g, '');
@@ -4481,8 +4515,18 @@ function match_link(site, data) {
             }
             link = imdb_prex + 'tt' + imdb_id + '/';
         }
-    } else if (site == 'douban' && data.match(/http(s*):\/\/.*?douban.com\/subject\/(\d+)/i)){
-        link = douban_prex + data.match(/subject\/(\d+)/i)[1] + '/';
+    } else if (site == 'douban') {
+        // 用 normalize 统一修缺 movie. 的链接；也兼容已是 movie.douban.com 的完整链接
+        var douban_fixed = normalize_douban_url(data);
+        if (douban_fixed && /movie\.douban\.com\/subject\/\d+/i.test(douban_fixed)) {
+            link = douban_fixed;
+        } else {
+            var douban_id_m = data.match(/(?:https?:\/\/(?:[\w-]+\.)?douban\.com\/subject\/|movie\.douban\.com\/subject\/)(\d+)/i)
+                || data.match(/subject\/(\d+)/i);
+            if (douban_id_m) {
+                link = douban_prex + douban_id_m[1] + '/';
+            }
+        }
     } else if (site == 'anidb' && data.match(/https:\/\/anidb\.net\/a\d+/i)){
         link = data.match(/https:\/\/anidb\.net\/a\d+/i)[0] + '/';
     } else if(site == 'tmdb' && data.match(/http(s*):\/\/www.themoviedb.org\//i)){
@@ -4906,6 +4950,72 @@ function get_cmct_extra_info(descr, extra_text, extra_bdinfo) {
         parts.push(String(extra_bdinfo).trim());
     }
     return organize_cmct_extra_info(parts.join('\n\n'));
+}
+
+function find_cmct_extra_textarea() {
+    var textareas = Array.from(document.getElementsByTagName('textarea'));
+    var labeled = textareas.find(function(textarea) {
+        var row = textarea.closest ? textarea.closest('tr') : null;
+        var row_text = row ? row.textContent : '';
+        return /附加信息|附加资料|附加資訊|附加資料|extra\s*info|additional\s*info/i.test(row_text);
+    });
+    if (labeled) {
+        return labeled;
+    }
+    var named = document.querySelector('textarea[name="extra_info"], textarea[name="extra"], textarea[id*="extra"]');
+    return named || textareas[2] || null;
+}
+
+function init_cmct_extra_tools(extra_textarea) {
+    var textarea = extra_textarea || find_cmct_extra_textarea();
+    if (!textarea || !textarea.parentNode) {
+        return false;
+    }
+    var existing = document.getElementById('cmct_extra_tools');
+    if (existing) {
+        return true;
+    }
+
+    var extra_tools = document.createElement('div');
+    extra_tools.id = 'cmct_extra_tools';
+    extra_tools.style.marginBottom = '6px';
+
+    var organize_extra = document.createElement('input');
+    organize_extra.type = 'button';
+    organize_extra.id = 'cmct_organize_extra';
+    organize_extra.value = '整理附加信息';
+    organize_extra.title = '代码转引用，并为对比图和 Release Info 添加折叠标签';
+    extra_tools.appendChild(organize_extra);
+
+    var append_menu = document.createElement('input');
+    append_menu.type = 'button';
+    append_menu.id = 'cmct_append_menu';
+    append_menu.value = '菜单代码';
+    append_menu.title = '在附加信息末尾添加 DISC MENU 折叠标签';
+    append_menu.style.marginLeft = '6px';
+    extra_tools.appendChild(append_menu);
+
+    textarea.parentNode.insertBefore(extra_tools, textarea);
+    $('#cmct_extra_tools input').css({
+        'color': '#202020',
+        'background': '#f2f2f2',
+        'border': '1px solid #707070',
+        'border-radius': '3px',
+        'padding': '3px 10px',
+        'font-weight': 'bold',
+        'cursor': 'pointer'
+    });
+
+    $('#cmct_organize_extra').click(function() {
+        textarea.value = organize_cmct_extra_info(textarea.value);
+    });
+    $('#cmct_append_menu').click(function() {
+        var menu_code = '[spoiler=DISC MENU][/spoiler]';
+        if (!textarea.value.includes(menu_code)) {
+            textarea.value = (textarea.value.trim() + '\n\n' + menu_code).trim();
+        }
+    });
+    return true;
 }
 
 function after_douban(douban_info, is_douban_needed) {
@@ -9823,6 +9933,9 @@ else if (origin_site == 'YemaPT') {
 }
 
 function auto_feed() {
+    if (/^https:\/\/(?:www\.)?springsunday\.net\/upload\.php(?:$|[?#])/i.test(site_url)) {
+        init_cmct_extra_tools();
+    }
     if (site_url.match(/^https:\/\/zhuque.in\/torrent\/list\/\d+/)) {
         if (!$('div.markdown').length) {
             return;
@@ -10096,6 +10209,22 @@ function auto_feed() {
                     var imdbnew2 = document.getElementsByClassName("imdbnew2")[0];
                     raw_info.url = match_link('imdb', imdbnew2.innerHTML);
                 } catch(err){}
+
+                // OurBits 豆瓣区可能还在「查询中」，优先用 data-doubanid；
+                // 简介里常见 https://douban.com/subject/{id}（缺 movie.），后面 fill_raw_info 会再规范化
+                try {
+                    var kdouban = document.getElementById('kdouban');
+                    if (kdouban) {
+                        var ob_dbid = kdouban.getAttribute('data-doubanid')
+                            || (kdouban.dataset && kdouban.dataset.doubanid);
+                        if (ob_dbid) {
+                            raw_info.dburl = douban_prex + String(ob_dbid).trim() + '/';
+                        }
+                    }
+                    if (!raw_info.dburl) {
+                        raw_info.dburl = match_link('douban', raw_info.descr);
+                    }
+                } catch(err) {}
 
                 if (raw_info.descr.search(/主.*演/i) < 0 && raw_info.descr.search(/类.*别/i) < 0) {
                     try{
@@ -13825,6 +13954,11 @@ function auto_feed() {
         }
         if (raw_info.dburl == ''){
             raw_info.dburl = match_link('douban', raw_info.descr);
+        } else {
+            raw_info.dburl = normalize_douban_url(raw_info.dburl) || match_link('douban', raw_info.dburl) || raw_info.dburl;
+        }
+        if (raw_info.descr) {
+            raw_info.descr = fix_broken_douban_links_in_text(raw_info.descr);
         }
         if (raw_info.dburl && !raw_info.url) {
             getDoc(raw_info.dburl, null, function(doc){
@@ -14906,15 +15040,15 @@ function auto_feed() {
                 }
                 var tmp_url = document.getElementById('input_box').value;
                 if (tmp_url.match(/douban.com/)) {
-                    raw_info.dburl = tmp_url;
+                    raw_info.dburl = normalize_douban_url(tmp_url) || match_link('douban', tmp_url) || tmp_url;
                     is_douban_needed = false;
                 }
                 var textarea = document.getElementById('textarea');
                 if (textarea && textarea.selectionStart != undefined && textarea.selectionEnd != undefined){
                     var chosen_value = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
-                    var dburl = chosen_value.match(/http(s*):\/\/.*?douban.com\/subject\/(\d+)/i);
-                    if (dburl){
-                        raw_info.dburl = dburl[0] + '/';
+                    var chosen_dburl = match_link('douban', chosen_value);
+                    if (chosen_dburl){
+                        raw_info.dburl = chosen_dburl;
                         is_douban_needed = false;
                     }
                 }
@@ -15004,7 +15138,7 @@ function auto_feed() {
                             textarea.value = data;
                             after_douban(data, false);
                             try{
-                                raw_info.dburl = data.match(/http(s*):\/\/.*?douban.com\/subject\/(\d+)/i)[0] + '/';
+                                raw_info.dburl = match_link('douban', data) || normalize_douban_url(data.match(/http(s*):\/\/.*?douban.com\/subject\/(\d+)/i)[0]);
                                 $('#input_box').val(raw_info.dburl);
                             } catch(err){
                                 console.log(err);
@@ -18287,47 +18421,7 @@ function auto_feed() {
                 descr_box[1].value = descr_box[1].value.substring(0, descr_box[1].value.indexOf('Report created by'));
             }
             descr_box[2].value = get_cmct_extra_info(raw_info.descr, raw_info.extra_text, raw_info.extra_bdinfo);
-            if (!document.getElementById('cmct_extra_tools')) {
-                var extra_tools = document.createElement('div');
-                extra_tools.id = 'cmct_extra_tools';
-                extra_tools.style.marginBottom = '6px';
-
-                var organize_extra = document.createElement('input');
-                organize_extra.type = 'button';
-                organize_extra.id = 'cmct_organize_extra';
-                organize_extra.value = '整理附加信息';
-                organize_extra.title = '代码转引用，并为对比图和 Release Info 添加折叠标签';
-                extra_tools.appendChild(organize_extra);
-
-                var append_menu = document.createElement('input');
-                append_menu.type = 'button';
-                append_menu.id = 'cmct_append_menu';
-                append_menu.value = '菜单代码';
-                append_menu.title = '在附加信息末尾添加 DISC MENU 折叠标签';
-                append_menu.style.marginLeft = '6px';
-                extra_tools.appendChild(append_menu);
-
-                descr_box[2].parentNode.insertBefore(extra_tools, descr_box[2]);
-                $('#cmct_extra_tools input').css({
-                    'color': '#202020',
-                    'background': '#f2f2f2',
-                    'border': '1px solid #707070',
-                    'border-radius': '3px',
-                    'padding': '3px 10px',
-                    'font-weight': 'bold',
-                    'cursor': 'pointer'
-                });
-
-                $('#cmct_organize_extra').click(function() {
-                    descr_box[2].value = organize_cmct_extra_info(descr_box[2].value);
-                });
-                $('#cmct_append_menu').click(function() {
-                    var menu_code = '[spoiler=DISC MENU][/spoiler]';
-                    if (!descr_box[2].value.includes(menu_code)) {
-                        descr_box[2].value = (descr_box[2].value.trim() + '\n\n' + menu_code).trim();
-                    }
-                });
-            }
+            init_cmct_extra_tools(descr_box[2]);
             var clear = document.createElement('input');
             clear.type = 'button';
             clear.value = " 清空附加信息 ";
