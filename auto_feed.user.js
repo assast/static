@@ -12,6 +12,7 @@
 // @match        http*://*/detail*.php*
 // @match        http*://*/upload*php*
 // @match        https://pixhost.to*
+// @match        https://pixhost.cc*
 // @match        https://*/upload/*
 // @match        https://*.open.cd/plugin_upload.php*
 // @match        https://www.myanonamouse.net/t/*
@@ -98,7 +99,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.1.5
+// @version      3.1.7
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -574,7 +575,7 @@ if (site_url.match(/^https?:\/\/ptpimg.me/)) {
     return;
 }
 
-if (site_url.match(/^https?:\/\/.*(imgbox.com|imagebam.co|pixhost.to|img.hdbits.org).?$/)) {
+if (site_url.match(/^https?:\/\/.*(imgbox.com|imagebam.co|pixhost.to|pixhost.cc|img.hdbits.org).?$/)) {
     var images = GM_getValue('HDB_images') !== undefined ? GM_getValue('HDB_images').split(', '): '';
     if (images && $('input[name="files[]"]').length) {
         $('div.visible-desktop:first').find('span:first').append(`<br><br><input type="button" value="拉取图片" id="add_images"/>`);
@@ -604,7 +605,7 @@ if (site_url.match(/^https?:\/\/.*(imgbox.com|imagebam.co|pixhost.to|img.hdbits.
             });
         });
     }
-    if (site_url.match(/pixhost.to|img.hdbits.org/)) {
+    if (site_url.match(/pixhost.(to|cc)|img.hdbits.org/)) {
         if (images.length && images[0]) {
             $('div.logo').append(`<br><br><input type="button" value="拉取图片" id="add_images"/>`);
             $('#header').after(`<br><br><div align="center"><input type="button" value="拉取图片" id="add_images"/></div>`);
@@ -1741,7 +1742,7 @@ function pix_send_images(urls) {
         return new Promise(function(resolve, reject) {
             GM_xmlhttpRequest({
                 "method": "POST",
-                "url": "https://pixhost.to/remote/",
+                "url": "https://pixhost.cc/remote/",
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded",
                     "Accept": "application/json",
@@ -3276,7 +3277,7 @@ const skip_img = [
     '[img]https://pic.imgdb.cn/item/6170004c2ab3f51d91c7782a.png[/img]',
     '[img]https://img.pterclub.net/images/CS.png[/img]',
     '[img]https://img.pterclub.net/images/2022/10/19/1.gif[/img]',
-    '[img]https://img93.pixhost.to/images/86/435614074_c5134549f13c2c087d67c9fa4089c49e-removebg-preview.png[/img]'
+    '[img]https://img93.pixhost.cc/images/86/435614074_c5134549f13c2c087d67c9fa4089c49e-removebg-preview.png[/img]'
 ];
 
 //从简介拆分出来mediainfo和截图
@@ -3398,7 +3399,7 @@ function correct_hdr10plus_by_mediainfo(labels) {
 function fill_raw_info(raw_info, forward_site){
     raw_info.descr = raw_info.descr.replace(/%3A/g, ':').replace(/%2F/g, "/");
     raw_info.descr = raw_info.descr.replace('[quote][/quote]', '').replace('[b][/b]', '').replace(/\n\n+/, '\n\n');
-    raw_info.descr = raw_info.descr.replace('https://pic.imgdb.cn/item/6170004c2ab3f51d91c77825.png', 'https://img93.pixhost.to/images/86/435614074_c5134549f13c2c087d67c9fa4089c49e-removebg-preview.png');
+    raw_info.descr = raw_info.descr.replace('https://pic.imgdb.cn/item/6170004c2ab3f51d91c77825.png', 'https://img93.pixhost.cc/images/86/435614074_c5134549f13c2c087d67c9fa4089c49e-removebg-preview.png');
     raw_info.descr = raw_info.descr.replace(/引用.{0,5}\n/g, '');
     raw_info.descr = raw_info.descr.replace(/.*ARDTU.*/g, '');
     //标题肯定都有，副标题可能没有，从简介获取
@@ -3787,7 +3788,7 @@ function init_buttons_for_transfer(container, site, mode, raw_info) {
             if (raw_info.images.length > 0) {
                 raw_info.images.push(raw_info.name.replace(/ /g, '.'));
                 GM_setValue('HDB_images', raw_info.images.join(', '));
-                window.open('https://pixhost.to/', '_blank');
+                window.open('https://pixhost.cc/', '_blank');
             } else {
                 alert('请选择要转存的图片！！！')
             }
@@ -8424,7 +8425,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
                     } catch(err) {}
                     images.push(name);
                     GM_setValue('HDB_images', images.join(', '));
-                    window.open('https://pixhost.to/', '_blank');
+                    window.open('https://pixhost.cc/', '_blank');
                 } else {
                     pix_send_images(images)
                         .then(function(new_urls) {
@@ -9170,20 +9171,28 @@ function getCasts(doc) {
     }
 }
 
-async function getIMDbScore(ID, timeout = TIMEOUT) {
+async function getIMDbScore(ID, timeout = 10000) {
+    // 旧接口 p.media-imdb.com 已下线(301),改抓 IMDB 详情页解析 JSON-LD;
+    // 原代码 timeout 拼写成 timout 导致超时不生效,接口挂掉时请求会一直卡住
     if (ID) {
         return new Promise(resolve => {
             GM_xmlhttpRequest({
                 method: 'GET',
-                url: `http://p.media-imdb.com/static-content/documents/v1/title/tt${ID}/ratings%3Fjsonp=imdb.rating.run:imdb.api.title.ratings/data.json`,
+                url: `https://www.imdb.com/title/tt${ID}/`,
                 headers: {
-                    referrer: 'http://p.media-imdb.com/'
+                    'Accept-Language': 'en-US,en;q=0.9'
                 },
-                timout: timeout,
+                timeout: timeout,
                 onload: x => {
                     try {
-                        const e = JSON.parse(x.responseText.slice(16, -1));
-                        resolve(e.resource);
+                        const ld = JSON.parse(x.responseText.match(/<script type="application\/ld\+json">([\s\S]+?)<\/script>/)[1]);
+                        const decode_el = document.createElement('textarea');
+                        decode_el.innerHTML = ld.name || '';
+                        resolve({
+                            title: decode_el.value,
+                            rating: ld.aggregateRating ? ld.aggregateRating.ratingValue : null,
+                            ratingCount: ld.aggregateRating ? ld.aggregateRating.ratingCount : null
+                        });
                     } catch (e) {
                         console.warn(e);
                         resolve(null);
@@ -9296,29 +9305,13 @@ async function getInfo(doc, raw_info) {
 
     let IMDbID, IMDbScore, awards, celebrities;
 
-    const concurrentFetches = [];
-
-    concurrentFetches.push(
-        // IMDb Fetch
-        getIMDbID(doc)
-            .then(e => {
-                IMDbID = e;
-                return getIMDbScore(IMDbID);
-            })
-            .then(e => {
-                IMDbScore = e;
-                return getAwards(DoubanID);
-            })
-            .then(e => {
-                awards = e;
-                return getCelebrities(DoubanID);
-            })
-            .then(e => {
-                celebrities = e;
-            })
-
-    );
-    await Promise.all(concurrentFetches);
+    // IMDB评分/获奖/演职员三个请求互不依赖,并行抓取(原先串行等待,是"复制"慢的主因之一)
+    IMDbID = await getIMDbID(doc);
+    [IMDbScore, awards, celebrities] = await Promise.all([
+        getIMDbScore(IMDbID),
+        getAwards(DoubanID),
+        getCelebrities(DoubanID)
+    ]);
     if (IMDbScore && IMDbScore.title) {
         if (isChinese) {
             if (!titles.translatedTitle.includes(IMDbScore.title)) {
@@ -9435,11 +9428,11 @@ async function transferToPixhost(imgUrl) {
         formData.append('ajax', `yes`);
         GM_xmlhttpRequest({
             method: "POST",
-            url: "https://pixhost.to/new-upload/",
+            url: "https://pixhost.cc/new-upload/",
             data: formData,
             headers: {
-                "Origin": "https://pixhost.to",
-                "Referer": "https://pixhost.to/",
+                "Origin": "https://pixhost.cc",
+                "Referer": "https://pixhost.cc/",
                 "User-Agent": window.navigator.userAgent
             },
             onload: (res) => {
@@ -9455,10 +9448,26 @@ async function transferToPixhost(imgUrl) {
     });
 }
 
+var douban_page_descr_cache = null;
+function get_douban_page_descr(doc, raw_info) {
+    // 豆瓣详情页解析结果缓存:配合进页面时的后台预取,点"复制"时基本秒出
+    if (doc === document) {
+        if (!douban_page_descr_cache) {
+            douban_page_descr_cache = getInfo(doc, raw_info).then(formatInfo);
+            douban_page_descr_cache.catch(err => {
+                douban_page_descr_cache = null;  // 预取失败则清缓存,下次点击重新抓
+                console.warn(err);
+            });
+        }
+        return douban_page_descr_cache;
+    }
+    return getInfo(doc, raw_info).then(formatInfo);
+}
+
 function get_douban_info(raw_info) {
-    getDoc(raw_info.dburl, null, function(doc) {
+    const run_info_gen = function(doc) {
         const infoGenClickEvent = async e => {
-            var data = formatInfo(await getInfo(doc, raw_info));
+            var data = await get_douban_page_descr(doc, raw_info);
             if (raw_info.origin_site == 'PTP') {
                 let poster = document.querySelector('.sidebar-cover-image')?.src;
                 if (poster) {
@@ -9545,7 +9554,14 @@ function get_douban_info(raw_info) {
             };
         }
         infoGenClickEvent();
-    });
+    };
+    // 已在对应豆瓣详情页时直接复用当前页面DOM,省掉一次整页重新下载
+    const on_subject = site_url.match(/^https:\/\/movie\.douban\.com\/subject\/(\d+)/i);
+    if (on_subject && raw_info.dburl && String(raw_info.dburl).indexOf('/subject/' + on_subject[1]) != -1) {
+        run_info_gen(document);
+    } else {
+        getDoc(raw_info.dburl, null, run_info_gen);
+    }
 }
 
 function add_picture_transfer() {
@@ -9718,7 +9734,10 @@ if (site_url.match(/jpopsuki.eu.*torrents.php\?id=/)) {
 if(site_url.match(/^https:\/\/movie.douban.com\/subject\/\d+/i) && if_douban_jump){
     $(document).ready(function () {
         $('#info').append(`<span class="pl">描述信息: </span><a id="copy">复制</a>`);
+        // 进页面就后台预取IMDB评分/获奖/演职员,点"复制"时直接用缓存结果
+        get_douban_page_descr(document, {'url': '', 'dburl': match_link('douban', site_url), 'descr': ''});
         $('#copy').click(e=>{
+            $('#copy').text('获取中...');
             var tmp_raw_info = {'url': '', 'dburl': match_link('douban', site_url), 'descr': ''};
             get_douban_info(tmp_raw_info);
         });
@@ -12628,7 +12647,14 @@ function auto_feed() {
                 raw_info.name = detail.name;
                 raw_info.torrent_name = raw_info.name.replace(/ /g, '.').replace(/\*/g, '') + '.torrent';
                 raw_info.torrent_name = raw_info.torrent_name.replace(/\.\.+/g, '.');
-                if (!raw_info.small_descr) { raw_info.small_descr = detail.smallDescr; }
+                // MT 的副标题只能从异步 API 拿，而 fetch 还没回来时 auto_feed 已经同步跑到
+                // dictToString -> fill_raw_info，那里用 get_small_descr_from_descr 兜底往
+                // small_descr 里塞了个 "| 类别：动作,惊悚,犯罪" 之类的垃圾值，于是原来的
+                // !raw_info.small_descr 判断永远为假，MT 自带的整条副标题被丢掉。
+                // 这里改成：API 给了 smallDescr 就以它为准（兜底值必须让位）。
+                if (detail.smallDescr && detail.smallDescr.trim()) {
+                    raw_info.small_descr = deal_with_subtitle(detail.smallDescr.trim());
+                }
                 if (!raw_info.url) { raw_info.url = detail.descr.match(/title\/tt\d+/) ? match_link('imdb', detail.descr): detail.imdb; reBuildHref(raw_info, forward_r);}
                 if (!raw_info.db_url) { raw_info.db_url = detail.douban; }
                 if (!raw_info.descr) {
