@@ -99,7 +99,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.1.7
+// @version      3.1.8
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -5208,7 +5208,9 @@ function rehost_single_img(site, img_url) {
     } else {
         return new Promise(function(resolve, reject) {
             var raw_str = site == 'imgbb' ? 'image': 'source';
-            var data = encodeURI(`${raw_str}=${img_url}&key=${used_rehost_img_info[site]['api-key']}`);
+            // 逐字段 encodeURIComponent:encodeURI 不转义 & = + #,图片链接一旦带查询串
+            // (如 ?imageView2/xxx&a=1)就会把 key 参数挤掉,imgbb 直接返回 400
+            var data = `${raw_str}=${encodeURIComponent(img_url)}&key=${encodeURIComponent(used_rehost_img_info[site]['api-key'])}`;
             const show_temple = ['展示：{url_viewer}', '原图: [img]{origin_url}[/img]', '缩略图：[img]{thumb_url}[/img]', 'bbcode中等: [url={url_viewer}][img]{medium_url}[/img][/url]', 'bbcode缩略: [url={url_viewer}][img]{thumb_url}[/img][/url]']
             GM_xmlhttpRequest({
                 "method": "POST",
@@ -5222,22 +5224,38 @@ function rehost_single_img(site, img_url) {
                 "data": data,
                 "onload": function(response) {
                     console.log(response);
-                    if (response.status != 200) { reject("Response error " + response.status);}
-                    else {
-                        if (site == 'imgbb') {
-                            data = JSON.parse(response.responseText).data;
-                            var bbcode_medium_url = data.url;
-                        } else if (site == 'gifyu'){
-                            data = JSON.parse(response.responseText).image;
-                            var bbcode_medium_url = data.url;
-                        } else if (site == 'freeimage') {
-                            data = JSON.parse(response.responseText).image;
-                            var bbcode_medium_url = data.url;
-                        }
-                        var show_result = show_temple.join('\n').format({'url_viewer': data.url_viewer, 'thumb_url': data.thumb.url, 'origin_url': data.url, 'medium_url': bbcode_medium_url});
-                        resolve(show_result);
+                    // responseType 设成 json 时 Tampermonkey 不再填充 responseText(所以 ptp_send_images
+                    // 用的是 response.response)。原来直接 JSON.parse(response.responseText) 会在 onload 里
+                    // 抛 SyntaxError,Promise 既不 resolve 也不 reject —— 按钮永远卡在"正在转存",
+                    // 看起来就是"转存 imgbb 不管用"。这里优先取 response.response,再兜底解析文本。
+                    var json = response.response;
+                    if (!json && response.responseText) {
+                        try { json = JSON.parse(response.responseText); } catch (err) { json = null; }
                     }
-               }
+                    if (typeof json == 'string') {
+                        try { json = JSON.parse(json); } catch (err) { json = null; }
+                    }
+                    if (response.status != 200) {
+                        // 把图床给的原因带出来,例如 imgbb 的 "Invalid API v1 key."(没填/填错 apikey)
+                        var reason = json && json.error && json.error.message ? json.error.message : '';
+                        reject(`${site} 转存失败 (HTTP ${response.status})` + (reason ? `：${reason}` : ''));
+                        return;
+                    }
+                    if (!json) { reject(`${site} 返回内容无法解析,请看控制台`); return; }
+                    var img_data = site == 'imgbb' ? json.data : json.image;
+                    if (!img_data || !img_data.url) { reject(`${site} 返回里没有图片地址,请看控制台`); return; }
+                    var bbcode_medium_url = img_data.url;
+                    var thumb_url = img_data.thumb && img_data.thumb.url ? img_data.thumb.url : img_data.url;
+                    var show_result = show_temple.join('\n').format({'url_viewer': img_data.url_viewer || img_data.url, 'thumb_url': thumb_url, 'origin_url': img_data.url, 'medium_url': bbcode_medium_url});
+                    resolve(show_result);
+               },
+                "onerror": function(err) {
+                    console.log(err);
+                    reject(`${site} 请求失败,请检查网络/代理`);
+                },
+                "ontimeout": function() {
+                    reject(`${site} 请求超时`);
+                }
             });
         });
     }
