@@ -99,7 +99,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.1.8
+// @version      3.1.10
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -1878,6 +1878,80 @@ function cmct_send_images(urls, apiKey) {
     return uploadNext(0);
 }
 
+// imgbb 批量转存：URL 直传 API，返回 [img]原图[/img] 数组（替代已失效的 ptpimg 批量转存）
+function imgbb_send_images(urls) {
+    var apiKey = used_rehost_img_info['imgbb'] && used_rehost_img_info['imgbb']['api-key'];
+    if (!apiKey) {
+        return Promise.reject('请先在脚本设置里填写 imgbb 的 apikey（打开 https://api.imgbb.com/ 申请）');
+    }
+    var total = urls.length;
+    var completed = 0;
+    var results = [];
+
+    var progressDiv = $('<div id="imgbb_progress" style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px;">正在上传到 imgbb: 0/' + total + '</div>');
+    $('#result').before(progressDiv);
+
+    function uploadOne(imgUrl) {
+        return new Promise(function(resolve, reject) {
+            var data = 'image=' + encodeURIComponent(imgUrl) + '&key=' + encodeURIComponent(apiKey);
+            GM_xmlhttpRequest({
+                method: 'POST',
+                url: 'https://api.imgbb.com/1/upload',
+                responseType: 'json',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Safari/537.36'
+                },
+                data: data,
+                onload: function(response) {
+                    var json = response.response;
+                    if (!json && response.responseText) {
+                        try { json = JSON.parse(response.responseText); } catch (err) { json = null; }
+                    }
+                    if (typeof json == 'string') {
+                        try { json = JSON.parse(json); } catch (err) { json = null; }
+                    }
+                    if (response.status != 200) {
+                        var reason = json && json.error && json.error.message ? json.error.message : '';
+                        reject('imgbb 转存失败 (HTTP ' + response.status + ')' + (reason ? '：' + reason : ''));
+                        return;
+                    }
+                    if (!json || !json.data || !json.data.url) {
+                        reject('imgbb 返回里没有图片地址');
+                        return;
+                    }
+                    resolve('[img]' + json.data.url + '[/img]');
+                },
+                onerror: function() { reject('imgbb 请求失败,请检查网络/代理'); },
+                ontimeout: function() { reject('imgbb 请求超时'); }
+            });
+        });
+    }
+
+    function uploadNext(index) {
+        if (index >= total) {
+            $('#imgbb_progress').remove();
+            return Promise.resolve(results);
+        }
+        return uploadOne(urls[index])
+            .then(function(result) {
+                completed++;
+                results.push(result);
+                $('#imgbb_progress').text('正在上传到 imgbb: ' + completed + '/' + total + ' (成功)');
+                return uploadNext(index + 1);
+            })
+            .catch(function(err) {
+                completed++;
+                $('#imgbb_progress').text('正在上传到 imgbb: ' + completed + '/' + total + ' (失败)');
+                $('#imgbb_progress').remove();
+                return Promise.reject(err);
+            });
+    }
+
+    return uploadNext(0);
+}
+
 // HDB 缩略图（t.hdbits.org/xxx.jpg）对应的原图扩展可能是 png 或 jpg。
 // 此函数对文本里所有 i.hdbits.org/xxx.jpg 异步 HEAD 探测：若同名 png 存在则替换为 png，否则保持 jpg。
 function fix_hdbits_ext_in_text(text) {
@@ -3135,6 +3209,87 @@ function strip_img_proxy(text) {
     });
 }
 
+// imgbb 新格式：[url=https://ibb.co/展示ID][img]https://i.ibb.co/缩略hash/文件名.png[/img][/url]
+// 缩略 hash ≠ 原图 hash，不能靠字符串替换；必须打开展示页，从 og:image 拿原图。
+// embed-code-3 现在仍是缩略图 bbcode，旧逻辑读它会拿到缩略图本身。
+function get_imgbb_viewer_url_from_piece(piece) {
+    if (!piece) return null;
+    // 只认真正的展示页 ibb.co/ID；新格式 i.ibb.co 的 hash 是缩略图 id，不能当展示页
+    var m = piece.match(/https?:\/\/ibb\.co\/([A-Za-z0-9]+)/i);
+    if (m) return 'https://ibb.co/' + m[1];
+    return null;
+}
+
+function fetch_imgbb_full_url(viewer_url) {
+    return new Promise(function(resolve, reject) {
+        getDoc(viewer_url, null, function(doc) {
+            if (doc == 'error' || !doc) {
+                reject('打开 imgbb 展示页失败: ' + viewer_url);
+                return;
+            }
+            // 1) og:image = 原图直链（实测 Content-Length 最大）
+            var og = $('meta[property="og:image"]', doc).attr('content');
+            if (og && /i\.ibb\.co\//i.test(og)) {
+                resolve(og.trim());
+                return;
+            }
+            // 2) 页面主图
+            var src = $('#image-viewer-container img', doc).attr('src')
+                || $('img.main-image, img#image-viewer-img', doc).attr('src');
+            if (src && /i\.ibb\.co\//i.test(src)) {
+                resolve(src.trim());
+                return;
+            }
+            // 3) 旧路径：embed-code 里可能混着原图（不可靠，最后兜底）
+            var embed = $('#embed-code-3', doc).val() || '';
+            var m = embed.match(/https?:\/\/i\.ibb\.co\/[A-Za-z0-9]+\/[^\[\]\s"'<>]+/i);
+            if (m) {
+                resolve(m[0]);
+                return;
+            }
+            reject('imgbb 展示页里没找到原图: ' + viewer_url);
+        });
+    });
+}
+
+// 把文本里所有 imgbb 缩略 bbcode / 直链 异步替换成原图 [img]...[/img]
+// 返回 Promise<string>
+function expand_imgbb_full_size(origin_str, need_img_label) {
+    if (!origin_str) return Promise.resolve(origin_str || '');
+    // 只处理带展示页的 bbcode：没有 ibb.co/展示ID 时新格式无法反查原图
+    var bbcode_re = /\[url=https?:\/\/ibb\.co\/[A-Za-z0-9]+\]\s*\[img\]https?:\/\/i\.ibb\.co\/[^\[\]]+?\[\/img\]\s*\[\/url\]/ig;
+    var pieces = origin_str.match(bbcode_re) || [];
+    // 也接受 [url=https://ibb.co/ID] 单独出现、img 在附近的情况：整段已由上面覆盖
+    // 纯 i.ibb.co 直链（无展示页）新格式无法可靠反查，跳过
+    if (!pieces.length) {
+        return Promise.resolve({ text: origin_str, ok: 0, fail: 0 });
+    }
+
+    var tasks = pieces.map(function(piece) {
+        var viewer = get_imgbb_viewer_url_from_piece(piece);
+        if (!viewer) return Promise.resolve({ piece: piece, full: null, err: 'no viewer' });
+        return fetch_imgbb_full_url(viewer)
+            .then(function(full) { return { piece: piece, full: full, err: null }; })
+            .catch(function(err) { return { piece: piece, full: null, err: String(err) }; });
+    });
+
+    return Promise.all(tasks).then(function(results) {
+        var out = origin_str;
+        var ok = 0, fail = 0;
+        results.forEach(function(r) {
+            if (r.full) {
+                var replacement = need_img_label === false ? r.full : ('[img]' + r.full + '[/img]');
+                out = out.split(r.piece).join(replacement);
+                ok++;
+            } else {
+                fail++;
+                console.log('imgbb 原图解析失败:', r.piece, r.err);
+            }
+        });
+        return { text: out, ok: ok, fail: fail };
+    });
+}
+
 function get_full_size_picture_urls(raw_info, imgs, container, need_img_label, callback, remove_img) {
     var img_urls = null;
     if (raw_info !== null) {
@@ -3157,9 +3312,16 @@ function get_full_size_picture_urls(raw_info, imgs, container, need_img_label, c
             if (raw_info) {
                 raw_info.descr = raw_info.descr.replace(img_urls[i], '');
             }
+            // 新 imgbb：[url=https://ibb.co/展示ID][img]https://i.ibb.co/缩略hash/..[/img][/url]
+            // 展示 ID ≠ 缩略 hash，同步路径无法换原图；整段保留给 expand_imgbb_full_size
+            if (/\[url=https?:\/\/ibb\.co\//i.test(img_urls[i]) && /i\.ibb\.co\//i.test(img_urls[i])) {
+                img_info += '\n' + img_urls[i];
+                continue;
+            }
             var item = img_urls[i].match(/\[img\](.*?)\[\/img\]/)[1];
-            if (img_urls[i].match(/\[url=(https:\/\/i.ibb.co\/.*?\.png)\]/)) {
-                item = img_urls[i].match(/\[url=(https:\/\/i.ibb.co\/.*?\.png)\]/)[1];
+            // 旧：url 直接就是 i.ibb.co 原图时可用
+            if (img_urls[i].match(/\[url=(https:\/\/i\.ibb\.co\/[^\]]+)\]/i)) {
+                item = img_urls[i].match(/\[url=(https:\/\/i\.ibb\.co\/[^\]]+)\]/i)[1];
             }
             if (item.match(/imgbox/)) {
                 item = item.replace('thumbs2', 'images2').replace('t.png', 'o.png');
@@ -3179,6 +3341,35 @@ function get_full_size_picture_urls(raw_info, imgs, container, need_img_label, c
             } else {
                 img_info += '\n' + item;
             }
+        }
+        // 同步替换完成后，若还有 imgbb 缩略/展示页，异步拉原图再回写
+        // 必须用保留了 [url=ibb.co/展示ID] 的 img_info（或原始 imgs），不能只用缩略直链
+        var has_imgbb = /ibb\.co|i\.ibb\.co/i.test(img_info) || /ibb\.co|i\.ibb\.co/i.test(imgs || '');
+        if (has_imgbb) {
+            var seed = img_info.trim();
+            // 若同步路径把展示页剥掉了，回退到原始输入
+            if (!/\[url=https?:\/\/ibb\.co\//i.test(seed) && imgs && /\[url=https?:\/\/ibb\.co\//i.test(imgs)) {
+                seed = imgs;
+            }
+            expand_imgbb_full_size(seed, need_img_label !== false).then(function(res) {
+                var final_text = (res && res.text ? res.text : seed).trim();
+                // 尽量整理成每行一张 [img]原图[/img] 或裸 URL
+                var kept = final_text.match(/\[img\]https?:\/\/[^\[\]]+?\[\/img\]/ig);
+                if (kept && kept.length) {
+                    final_text = kept.join('\n');
+                } else {
+                    var lines = final_text.split(/\n+/).map(function(l){ return l.trim(); }).filter(Boolean);
+                    final_text = lines.join('\n');
+                }
+                container.val(final_text);
+                if (callback) callback(final_text);
+            }).catch(function(err) {
+                console.log('expand_imgbb_full_size failed', err);
+                container.val(img_info.trim());
+                if (callback) callback(img_info);
+            });
+            if (remove_img) remove_img(img_urls);
+            return;
         }
         container.val(img_info.trim());
         if (callback) {
@@ -8261,7 +8452,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
         $('#dealimg').append(`<input type="button" id="space2none_assast" value="空格->空白" style="margin-bottom:5px;margin-right:5px">`);
         $('#dealimg').append(`<input type="button" id="preview" value="图片预览" style="margin-bottom:5px;">`);
         $('#dealimg').append(`<input type="button" id="getsource" value="获取大图" style="margin-bottom:5px;margin-left:5px">`);
-        $('#dealimg').append(`<input type="button" id="send_ptpimg" value="转ptpimg" style="margin-bottom:5px;margin-left:5px">`);
+        $('#dealimg').append(`<input type="button" id="send_imgbb" value="转imgbb" style="margin-bottom:5px;margin-left:5px">`);
         $('#dealimg').append(`<input type="button" id="send_pixhost" value="转pixhost" style="margin-bottom:5px;margin-left:5px">`);
         $('#dealimg').append(`<input type="button" id="send_imgbox" value="转imgbox" style="margin-bottom:5px;margin-left:5px">`);
         $('#dealimg').append(`<input type="button" id="send_hdbits" value="转HDBits" style="margin-bottom:5px;margin-left:5px">`);
@@ -8269,7 +8460,6 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
         $('#dealimg').append(`<input type="button" id="get_imgbb" value="imgbb源图" style="margin-bottom:5px;margin-left:5px">`);
         $('#dealimg').append(`<input type="button" id="change" value="字符串替换" style="margin-bottom:5px;margin-left:5px">`);
         $('#dealimg').append(`<input type="text" style="width: 50px; text-align:center; margin-left: 5px" id="img_source" />--<input type="text" style="width: 50px; text-align:center; margin-right: 5px" id="img_dest" /><br>`);
-        $('#dealimg').append(`<input type="button" id="350px" value="350px缩略" style="margin-bottom:5px;margin-right:5px">`);
         $('#dealimg').append(`<input type="button" id="del_img_tag" value="链接提取" style="margin-bottom:5px;margin-right:5px">`);
         $('#dealimg').append(`<input type="button" id="enter2space" value="换行->空格" style="margin-bottom:5px;margin-right:5px">`);
         $('#dealimg').append(`<input type="button" id="get_encode" value="图片提取" style="margin-bottom:5px;margin-right:5px">`);
@@ -8376,20 +8566,19 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
                 $('#result').val(resultImgs.join(" "));
             }
         })
-        $('#send_ptpimg').click((e)=>{
+        $('#send_imgbb').click((e)=>{
             var origin_str = $('#picture').val();
-            images = origin_str.match(/\[img\]http[^\[\]]*?(jpg|png|webp|\.gif(?![a-zA-Z0-9]))/ig).map((item)=>{ return item.replace(/\[.*?\]/g, ''); });
-            if (images.length) {
-                ptp_send_images(images, used_ptp_img_key)
-                    .then(function(new_urls){
-                        new_urls = new_urls.toString().split(',').join('\n');
-                        $('#result').val(new_urls);
-                    }).catch(function(err){
+            origin_str = ensure_img_tags(origin_str);
+            var matched = origin_str.match(/\[img\]http[^\[\]]*?(jpg|png|webp|jpeg|\.gif(?![a-zA-Z0-9]))/ig);
+            if (!matched || !matched.length) { alert('请输入图片地址！！'); return; }
+            var images = matched.map(function(item){ return item.replace(/\[.*?\]/g, ''); });
+            imgbb_send_images(images)
+                .then(function(new_urls){
+                    $('#result').val(new_urls.join('\n'));
+                    alert('转存成功！');
+                }).catch(function(err){
                     alert(err);
                 });
-            } else {
-                alert('请输入图片地址！！');
-            }
         });
 
         $('#send_imgbox').click((e)=>{
@@ -8521,19 +8710,6 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
         });
 
         $('#get_imgbb').click((e)=>{
-            function getibbdoc(url) {
-                var p = new Promise((resolve, reject)=>{
-                    getDoc(url,null,function(doc){
-                        if (doc == 'error') {
-                            reject('error');
-                        } else {
-                            var source_img_url = $('#embed-code-3', doc).val();
-                            resolve(source_img_url);
-                        }
-                    });
-                })
-                return p;
-            }
             function getpostdoc(url) {
                 var p = new Promise((resolve, reject)=>{
                     getDoc(url,null,function(doc){
@@ -8544,34 +8720,34 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
                 return p;
             }
             var origin_str = $('#picture').val();
-            var imgbb_urls = origin_str.match(/\[url=.*?\]\[img\]https?:\/\/i.ibb.co[^\[\]]*?(jpg|png|\.gif(?![a-zA-Z0-9]))\[\/img\]\[\/url\]/ig);
-            if (imgbb_urls === null) {
-                alert("没有监测到imgbb缩略图链接");
+            // 新 imgbb：展示页 id ≠ 缩略 hash，必须抓展示页 og:image 才是原图
+            var has_imgbb = /ibb\.co|i\.ibb\.co/i.test(origin_str);
+            if (!has_imgbb) {
+                // 没有 imgbb 时仍尝试 postimg
             } else {
-                var flag = false;
-                imgbb_urls.map(item=>{
-                    var a = item.match(/https:\/\/ibb.co\/(.*?)\]/)[1];
-                    var b = item.match(/https:\/\/i.ibb.co\/(.*?)\//)[1];
-                    if (a == b) {
-                        flag = true;
+                $('#result').val('正在解析 imgbb 原图…');
+                expand_imgbb_full_size(origin_str, true).then(function(res) {
+                    var text = res.text || origin_str;
+                    // 整理成每行一张 [img]原图[/img]
+                    var imgs = text.match(/\[img\]https?:\/\/i\.ibb\.co[^\[\]]+?\[\/img\]/ig);
+                    if (imgs && imgs.length) {
+                        $('#result').val(imgs.join('\n'));
+                    } else {
+                        // 可能只剩裸 URL
+                        var bares = text.match(/https?:\/\/i\.ibb\.co\/[A-Za-z0-9]+\/[^\s\[\]"'<>]+/ig);
+                        $('#result').val(bares ? bares.map(function(u){ return '[img]'+u+'[/img]'; }).join('\n') : text);
                     }
+                    if (res.fail) {
+                        alert('imgbb 原图：成功 ' + res.ok + ' 张，失败 ' + res.fail + ' 张（失败的看控制台）');
+                    } else if (res.ok) {
+                        alert('imgbb 原图获取成功：' + res.ok + ' 张');
+                    } else {
+                        alert('没有监测到可解析的 imgbb 链接');
+                    }
+                }).catch(function(err) {
+                    $('#result').val('');
+                    alert('imgbb 原图解析失败：' + err);
                 });
-                if (flag) {
-                    var imgbb_tasks = [];
-                    imgbb_urls.map(item=>{
-                        var imgbb_show_url = 'https://ibb.co/' + item.match(/https:\/\/i.ibb.co\/(.*?)\//)[1];
-                        var imgbb_p = getibbdoc(imgbb_show_url);
-                        imgbb_tasks.push(imgbb_p);
-                    })
-                    Promise.all(imgbb_tasks).then((data)=>{
-                        for (i=0; i<data.length; i++) {
-                            origin_str = origin_str.replace(imgbb_urls[i], `${data[i]}`);
-                        }
-                        get_full_size_picture_urls(null, origin_str, $('#result'), true);
-                    })
-                } else {
-                    get_full_size_picture_urls(null, origin_str, $('#result'), true);
-                }
             }
             var postimg_urls = origin_str.match(/https?:\/\/i.postimg.cc[^\[\]]*?(jpg|png|\.gif(?![a-zA-Z0-9]))/ig);
             if (postimg_urls === null) {
@@ -8590,7 +8766,8 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
                         origin_str = origin_str.replace(postimg_urls[i], data[i]);
                     }
                     origin_str = origin_str.match(/\[img\]https?:.*?(jpg|png|\.gif(?![a-zA-Z0-9]))\[\/img\]/ig).join('\n');
-                    $('#result').val(origin_str);
+                    // 若同时在跑 imgbb，不覆盖 result；否则写入
+                    if (!has_imgbb) $('#result').val(origin_str);
                 })
             }
         });
@@ -8608,14 +8785,6 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
                 dest_str += images[i + encode_index - 2] + '\n';
             }
             $('#result').val(dest_str);
-        });
-
-        $('#350px').click((e)=>{
-            var origin_str = $('#picture').val();
-            images = origin_str.match(/\[img\]http[^\[\]]*?(jpg|png|\.gif(?![a-zA-Z0-9]))\[\/img\]/ig).join('\n');
-            if (images.length) {
-                $('#result').val(deal_img_350(images));
-            }
         });
 
         $('#up_text').click((e)=>{
@@ -27835,36 +28004,21 @@ function auto_feed() {
                             $('#release_desc').val(origin_str);
                         });
                         $('#go_ibb').click((e)=>{
-                            function getibbdoc(url) {
-                                console.log(url)
-                                var p = new Promise((resolve, reject)=>{
-                                    getDoc(url,null,function(doc){
-                                        console.log(doc)
-                                        var source_img_url = $('#embed-code-3', doc).val();
-                                        resolve(source_img_url);
-                                    });
-                                })
-                                return p;
-                            }
                             var origin_str = $('#release_desc').val();
-                            var imgbb_urls = origin_str.match(/https?:\/\/i.ibb.co[^\[\]]*?(jpg|png|\.gif(?![a-zA-Z0-9]))/g);
-                            if (!imgbb_urls.length) {
+                            if (!/ibb\.co|i\.ibb\.co/i.test(origin_str)) {
                                 alert("没有监测到imgbb链接");
-                            } else {
-                                var imgbb_tasks = [];
-                                imgbb_urls.map(item=>{
-                                    var imgbb_show_url = 'https://ibb.co/' + item.match(/https:\/\/i.ibb.co\/(.*?)\//)[1];
-                                    var imgbb_p = getibbdoc(imgbb_show_url);
-                                    imgbb_tasks.push(imgbb_p);
-                                })
-                                Promise.all(imgbb_tasks).then((data)=>{
-                                    for (i=0; i<data.length; i++) {
-                                        origin_str = origin_str.replace(`[img]${imgbb_urls[i]}[/img]`, data[i]);
-                                    }
-                                    $('#release_desc').val(origin_str);
-                                    alert("获取成功");
-                                })
+                                return;
                             }
+                            expand_imgbb_full_size(origin_str, true).then(function(res) {
+                                $('#release_desc').val(res.text || origin_str);
+                                if (res.fail) {
+                                    alert('获取成功 ' + res.ok + ' 张，失败 ' + res.fail + ' 张');
+                                } else {
+                                    alert(res.ok ? ('获取成功：' + res.ok + ' 张') : '没有可解析的 imgbb 链接');
+                                }
+                            }).catch(function(err) {
+                                alert('获取失败：' + err);
+                            });
                         });
                     }
                     $('#release_desc').val($('#release_desc').val() ? $('#release_desc').val() + '\n\n' + pic_info: pic_info);
