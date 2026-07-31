@@ -99,7 +99,7 @@
 // @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.1.10
+// @version      3.1.11
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -3209,6 +3209,137 @@ function strip_img_proxy(text) {
     });
 }
 
+// Aither 等 UNIT3D 站新增了“描述图片自动备份”：外链图会被转存到站点自己的图床(file.aither.cc)，
+// 页面里渲染出来的 <img> 是 350px 缩略图，站点保存的 BBCode 也被改写成
+// [url=https://ibb.co/展示ID][img=350]https://file.aither.cc/u/xxx.png[/img][/url]，
+// 备份链接和原图链接没有任何字符串规律，所以“获取大图”对着文本无从下手。
+// 但原图直链就在同一段 DOM 里：
+// <span class="bbcode-description-backup-image--wrapper">
+//   <a href="展示页"><img src="备份缩略图"></a>
+//   ... <a class="bbcode-description-backup-image--action" title="Open original image" href="原图直链">
+// 这里把 wrapper 扫一遍，建“备份缩略图 -> 原图直链”的映射表。
+function find_unit3d_backup_action(wrapper, keyword) {
+    var href = '';
+    try {
+        $(wrapper).find('a.bbcode-description-backup-image--action').each(function() {
+            var title = ($(this).attr('title') || '').toLowerCase();
+            if (title.indexOf(keyword) > -1 && $(this).attr('href')) {
+                href = $(this).attr('href');
+                return false;
+            }
+        });
+    } catch (err) {}
+    return href;
+}
+
+function get_unit3d_backup_image_map(root) {
+    var map = {};
+    try {
+        var scope = root ? $(root) : $(document);
+        scope.find('.bbcode-description-backup-image--wrapper').each(function() {
+            var $wrapper = $(this);
+            var origin = find_unit3d_backup_action($wrapper, 'original');
+            if (!origin) return;
+            origin = strip_img_proxy(origin.trim());
+            var backup = find_unit3d_backup_action($wrapper, 'backup');
+            if (backup) map[strip_img_proxy(backup.trim())] = origin;
+            $wrapper.find('img').each(function() {
+                var src = $(this).attr('src') || this.src || '';
+                if (src) map[strip_img_proxy(src.trim())] = origin;
+            });
+        });
+    } catch (err) {}
+    return map;
+}
+
+// 单张 <img> 取原图直链：在备份 wrapper 里就用 title="Open original image" 的地址，否则用 src 本身
+function get_unit3d_origin_img_src(img_el) {
+    var src = '';
+    try {
+        src = img_el.getAttribute('src') || img_el.src || '';
+        var wrapper = img_el.closest ? img_el.closest('.bbcode-description-backup-image--wrapper') : null;
+        if (wrapper) {
+            var origin = find_unit3d_backup_action(wrapper, 'original');
+            if (origin) src = origin.trim();
+        }
+    } catch (err) {}
+    return strip_img_proxy(src);
+}
+
+// 用映射表把文本里的备份缩略图链接换回原图直链（长链接优先，避免前缀互相覆盖）
+function restore_unit3d_backup_images(text, map) {
+    if (!text) return text;
+    map = map || get_unit3d_backup_image_map();
+    var keys = Object.keys(map);
+    if (!keys.length) return text;
+    keys.sort(function(a, b) { return b.length - a.length; });
+    keys.forEach(function(backup) {
+        if (!backup || backup === map[backup]) return;
+        text = text.split(backup).join(map[backup]);
+    });
+    return text;
+}
+
+// 取站点 Description 面板里存的原始 BBCode：它被 base64 塞在 Alpine.data('description') 的 atob('...') 里
+function get_unit3d_description_bbcode() {
+    var result = null;
+    try {
+        $('script').each(function() {
+            var code = this.textContent || '';
+            if (code.indexOf("Alpine.data('description'") < 0 && code.indexOf('Alpine.data("description"') < 0) return;
+            var m = code.match(/atob\(\s*['"]([A-Za-z0-9+/=\s]+)['"]\s*\)/);
+            if (!m) return;
+            var b64 = m[1].replace(/\s+/g, '');
+            var raw = '';
+            try {
+                raw = decodeURIComponent(escape(atob(b64)));   // 与站点自身 copy() 的解码方式保持一致
+            } catch (e) {
+                try { raw = atob(b64); } catch (e2) { raw = ''; }
+            }
+            if (!raw) return;
+            // 站点是 textarea.innerHTML = raw 后取 .value，顺带把 &amp; 之类实体解回来，这里照做
+            var holder = document.createElement('textarea');
+            holder.innerHTML = raw;
+            result = holder.value;
+            return false;
+        });
+    } catch (err) {}
+    return result;
+}
+
+// 劫持 UNIT3D 种子页 Description 面板的 Copy 按钮：
+// 站点存的 BBCode 已被“图片备份”改写成 [url=展示页][img=350]自家备份缩略图[/img][/url]，
+// 直接复制出去发别的站就全是 350px 缩略图。这里在站点的 Alpine 监听之前（捕获阶段）拦下点击，
+// 用 DOM 里的原图直链替换掉备份链接、并去掉 [img=350] 的宽度，再写剪贴板。
+// 页面没开图片备份（没有 wrapper）时不拦截，保持站点原行为。
+function hijack_unit3d_description_copy() {
+    try {
+        var btn = $('h2.panel__heading:contains("Description"), h2.panel__heading:contains("描述")')
+            .closest('header').find('button')
+            .filter(function(){ return /copy|复制/i.test($(this).text()); })[0];
+        if (!btn || btn.getAttribute('data-af-origin-copy')) return;
+        btn.setAttribute('data-af-origin-copy', '1');
+        btn.title = 'auto_feed：复制时已把站点备份的缩略图换回原图直链';
+        btn.addEventListener('click', function(e) {
+            var map = get_unit3d_backup_image_map();
+            if (!Object.keys(map).length) return;   // 没开图片备份，交给站点自己复制
+            var text = get_unit3d_description_bbcode();
+            if (!text) return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            var fixed = restore_unit3d_backup_images(text, map).replace(/\[img=\d+\]/ig, '[img]');
+            try {
+                GM_setClipboard(fixed);
+            } catch (err) {
+                try { navigator.clipboard.writeText(fixed); } catch (err2) {}
+            }
+            var old_text = btn.textContent;
+            btn.textContent = '已复制原图!';
+            setTimeout(function(){ btn.textContent = old_text; }, 1500);
+        }, true);
+    } catch (err) {}
+}
+
 // imgbb 新格式：[url=https://ibb.co/展示ID][img]https://i.ibb.co/缩略hash/文件名.png[/img][/url]
 // 缩略 hash ≠ 原图 hash，不能靠字符串替换；必须打开展示页，从 og:image 拿原图。
 // embed-code-3 现在仍是缩略图 bbcode，旧逻辑读它会拿到缩略图本身。
@@ -3257,7 +3388,9 @@ function fetch_imgbb_full_url(viewer_url) {
 function expand_imgbb_full_size(origin_str, need_img_label) {
     if (!origin_str) return Promise.resolve(origin_str || '');
     // 只处理带展示页的 bbcode：没有 ibb.co/展示ID 时新格式无法反查原图
-    var bbcode_re = /\[url=https?:\/\/ibb\.co\/[A-Za-z0-9]+\]\s*\[img\]https?:\/\/i\.ibb\.co\/[^\[\]]+?\[\/img\]\s*\[\/url\]/ig;
+    // img 内不再限定 i.ibb.co：Aither 会把图转存成 file.aither.cc 备份图，
+    // 展示页仍是 ibb.co，照样能反查原图；同时兼容 [img=350] 这种带宽度的写法。
+    var bbcode_re = /\[url=https?:\/\/ibb\.co\/[A-Za-z0-9]+\]\s*\[img(?:=\d+)?\]https?:\/\/[^\[\]]+?\[\/img\]\s*\[\/url\]/ig;
     var pieces = origin_str.match(bbcode_re) || [];
     // 也接受 [url=https://ibb.co/ID] 单独出现、img 在附近的情况：整段已由上面覆盖
     // 纯 i.ibb.co 直链（无展示页）新格式无法可靠反查，跳过
@@ -3292,10 +3425,14 @@ function expand_imgbb_full_size(origin_str, need_img_label) {
 
 function get_full_size_picture_urls(raw_info, imgs, container, need_img_label, callback, remove_img) {
     var img_urls = null;
+    // Aither 等站的备份图 bbcode 是 [img=350]，老正则只认 [img]，会整段漏掉
     if (raw_info !== null) {
-        img_urls = raw_info.descr.match(/(\[url=.*?\])?\[img\].*?\[\/img\](\[\/url\])?/ig);
+        // 站点页面上有备份图 wrapper 时，先按 DOM 里的 title="Open original image" 直接换成原图，不用联网
+        raw_info.descr = restore_unit3d_backup_images(raw_info.descr);
+        img_urls = raw_info.descr.match(/(\[url=.*?\])?\[img(?:=\d+)?\].*?\[\/img\](\[\/url\])?/ig);
     } else if (imgs) {
-        img_urls = imgs.match(/(\[url=.*?\])?\[img\].*?\[\/img\](\[\/url\])?/ig);
+        imgs = restore_unit3d_backup_images(imgs);
+        img_urls = imgs.match(/(\[url=.*?\])?\[img(?:=\d+)?\].*?\[\/img\](\[\/url\])?/ig);
     }
     var img_info = '';
     try {
@@ -3314,11 +3451,13 @@ function get_full_size_picture_urls(raw_info, imgs, container, need_img_label, c
             }
             // 新 imgbb：[url=https://ibb.co/展示ID][img]https://i.ibb.co/缩略hash/..[/img][/url]
             // 展示 ID ≠ 缩略 hash，同步路径无法换原图；整段保留给 expand_imgbb_full_size
-            if (/\[url=https?:\/\/ibb\.co\//i.test(img_urls[i]) && /i\.ibb\.co\//i.test(img_urls[i])) {
+            // Aither 备份图（[url=ibb.co/展示ID][img=350]file.aither.cc/u/xxx.png[/img][/url]）同理：
+            // 备份链接和原图无字符串规律，只能靠展示页反查，所以不再要求 img 内必须是 i.ibb.co
+            if (/\[url=https?:\/\/ibb\.co\//i.test(img_urls[i])) {
                 img_info += '\n' + img_urls[i];
                 continue;
             }
-            var item = img_urls[i].match(/\[img\](.*?)\[\/img\]/)[1];
+            var item = img_urls[i].match(/\[img(?:=\d+)?\](.*?)\[\/img\]/)[1];
             // 旧：url 直接就是 i.ibb.co 原图时可用
             if (img_urls[i].match(/\[url=(https:\/\/i\.ibb\.co\/[^\]]+)\]/i)) {
                 item = img_urls[i].match(/\[url=(https:\/\/i\.ibb\.co\/[^\]]+)\]/i)[1];
@@ -3354,9 +3493,10 @@ function get_full_size_picture_urls(raw_info, imgs, container, need_img_label, c
             expand_imgbb_full_size(seed, need_img_label !== false).then(function(res) {
                 var final_text = (res && res.text ? res.text : seed).trim();
                 // 尽量整理成每行一张 [img]原图[/img] 或裸 URL
-                var kept = final_text.match(/\[img\]https?:\/\/[^\[\]]+?\[\/img\]/ig);
+                // 兼容 [img=350]（Aither 备份图 bbcode 带宽度），并统一去掉宽度
+                var kept = final_text.match(/\[img(?:=\d+)?\]https?:\/\/[^\[\]]+?\[\/img\]/ig);
                 if (kept && kept.length) {
-                    final_text = kept.join('\n');
+                    final_text = kept.map(function(one){ return one.replace(/\[img=\d+\]/i, '[img]'); }).join('\n');
                 } else {
                     var lines = final_text.split(/\n+/).map(function(l){ return l.trim(); }).filter(Boolean);
                     final_text = lines.join('\n');
@@ -8464,14 +8604,14 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
         $('#dealimg').append(`<input type="button" id="enter2space" value="换行->空格" style="margin-bottom:5px;margin-right:5px">`);
         $('#dealimg').append(`<input type="button" id="get_encode" value="图片提取" style="margin-bottom:5px;margin-right:5px">`);
         $('#dealimg').append(`从第<input type="text" style="width: 30px; text-align:center; margin-left: 5px; margin-right:5px" id="start" />张开始每隔<input type="text" style="width: 30px; text-align:center; margin-left: 5px; margin-right:5px" id="step" />张获取其中第<input type="text" style="width: 30px; text-align:center; margin-left: 5px;margin-right:5px" id="number" />张。<br>`);
-        $('#dealimg').append(`<font color="red">获取大图目前支持imgbox，pixhost，pter，ttg，瓷器，img4k，HDBits，其余的可以尝试字符串替换。</font><a href="https://github.com/tomorrow505/auto_feed_js/wiki/%E5%9B%BE%E7%89%87%E5%A4%84%E7%90%86" target="_blank" style="color:blue">→→点我查看教程←←</a><br>`);
+        $('#dealimg').append(`<font color="red">获取大图目前支持imgbox，pixhost，pter，ttg，瓷器，img4k，HDBits，imgbb(含Aither备份图，需联网查展示页)，其余的可以尝试字符串替换。</font><a href="https://github.com/tomorrow505/auto_feed_js/wiki/%E5%9B%BE%E7%89%87%E5%A4%84%E7%90%86" target="_blank" style="color:blue">→→点我查看教程←←</a><br>`);
         $('#dealimg').append(`<textarea id="picture" style="width:700px" rows="15"></textarea>`);
         $('#dealimg').append(`<div id="imgs_to_show" style="display: none;"></div><br>`);
         $('#dealimg').append(`<div>结果展示 <a href="#" id="up_text" style="color:red;">↑将结果移入输入框</a><br><textarea id="result" style="width:700px;" rows="15"></textarea></div>`);
 
         var descr = GM_getValue('descr') === undefined ? '': GM_getValue('descr');
         descr = strip_img_proxy(descr);
-        var imgs_to_deal = descr.match(/(\[url=.*?\])?\[img\].*?(png|jpg|webp|\.gif(?![a-zA-Z0-9]))\[\/img\](\[\/url\])?/ig);
+        var imgs_to_deal = descr.match(/(\[url=.*?\])?\[img(?:=\d+)?\].*?(png|jpg|webp|\.gif(?![a-zA-Z0-9]))\[\/img\](\[\/url\])?/ig);
         try {
             if (imgs_to_deal) {
                 $('#picture').val(imgs_to_deal.join('\n'));
@@ -13684,6 +13824,7 @@ function auto_feed() {
         if (origin_site == 'BLU' || origin_site == 'Tik' || origin_site == 'Aither') {
             var mediainfo = '';
             var description_body = $('h2.panel__heading:contains("Description"), h2.panel__heading:contains("描述")').parent().next();
+            hijack_unit3d_description_copy();
             try {
                 var unit3d_bdinfos = [];
                 function append_unit3d_bdinfos(info) {
@@ -13727,10 +13868,14 @@ function auto_feed() {
             try {
                 var picture_info = description_body[0].getElementsByTagName('img');
                 for (i = 0; i < picture_info.length; i++){
+                    // Aither 等站开了“描述图片备份”后，页面上的 <img> 是转存到自家图床的 350px 缩略图，
+                    // 原图直链挂在同一个 wrapper 里 title="Open original image" 的 <a> 上，优先取它，
+                    // 否则提取出来的全是缩略图，而且备份链接没规律，“获取大图”也救不回来
+                    var img_src = get_unit3d_origin_img_src(picture_info[i]);
                     if (picture_info[i].parentNode.href){
-                        img_urls += '[url='+ picture_info[i].parentNode.href +'][img]' + picture_info[i].src + '[/img][/url] ';
+                        img_urls += '[url='+ picture_info[i].parentNode.href +'][img]' + img_src + '[/img][/url] ';
                     } else {
-                        img_urls += '[img]' + picture_info[i].src + '[/img] ';
+                        img_urls += '[img]' + img_src + '[/img] ';
                     }
                 }
             } catch (err) {}
