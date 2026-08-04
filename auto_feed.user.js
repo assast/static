@@ -93,13 +93,13 @@
 // @match        https://c.pc.qq.com/middlem.html?pfurl=*
 // @require      https://unpkg.com/@popperjs/core@2/dist/umd/popper.min.js
 // @require      https://unpkg.com/tippy.js@6/dist/tippy-bundle.umd.js
-// @require      https://greasyfork.org/scripts/453166-jquery/code/jquery.js?version=1105525
-// @require      https://greasyfork.org/scripts/28502-jquery-ui-v1-11-4/code/jQuery%20UI%20-%20v1114.js?version=187735
-// @require      https://greasyfork.org/scripts/430180-imgcheckbox2/code/imgCheckbox2.js?version=956211
-// @require      https://greasyfork.org/scripts/444988-music-helper/code/music-helper.js?version=1268106
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/1.10.2/jquery.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js
+// @require      https://update.greasyfork.org/scripts/430180/imgCheckbox2.js?version=956211
+// @require      https://update.greasyfork.org/scripts/444988/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.1.11
+// @version      3.1.12
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -114,7 +114,6 @@
 // ==/UserScript==
 
 /*
-日志：
 
     2022年6月以前的日志请参看："https://github.com/tomorrow505/auto_feed_js/wiki/更新日志"
     20220604：修复海豹部分bug，修复piggo部分bug。优化禁转判断后跳转逻辑。
@@ -161,6 +160,15 @@ const N = "\n";
 var evt = document.createEvent("HTMLEvents");
 evt.initEvent("change", false, true);
 this.$ = this.jQuery = jQuery.noConflict(true);
+
+// assast 兜底:@require 万一拉不到(greasyfork 主站被 Cloudflare 403 就整站挂过一次),
+// imgCheckbox 插件缺失会让 auto_feed() 在第一个 $('.checkable_IMG').imgCheckbox(...) 处
+// 抛 TypeError 并中断,结果是整个转种框都不出来。这里补个空实现:插件没了只是图片勾选不可用,
+// 转种主流程照常。
+if (typeof $ !== 'undefined' && $.fn && typeof $.fn.imgCheckbox !== 'function') {
+    console.warn('[auto_feed] imgCheckbox2 未加载,图片勾选功能不可用(不影响转种)');
+    $.fn.imgCheckbox = function () { return this; };
+}
 
 jQuery.fn.wait = function (func, times, interval) {
     var _times = times || 100, //100次
@@ -2686,6 +2694,11 @@ String.prototype.format = function(args) {
 //下面几个函数为字符串赋予获取各种编码信息的方法——适用于页面基本信息和字符串
 String.prototype.medium_sel = function() { //媒介
     var result = this.toString();
+    // assast 标题里出现 x264/x265/BDRip 这类压制标记时,即便同时带 UHD/BluRay 也是压制而不是原盘。
+    // 典型如 "xxx 2160p UHD BluRay FLAC 2.0 DV HDR x265-XXX",老逻辑会被 UHD 分支抢先判成原盘。
+    // 但如果文本里带 BDInfo 特征(原盘信息),说明确实是圆盘,不做降级。
+    var is_encode_named = /(^|[^a-z0-9])(x\.?26[45]|BD-?Rip|BR-?Rip)([^a-z0-9]|$)/i.test(result) &&
+                          !/DISC INFO|Disc Label|Disc Size|Playlist Report/i.test(result);
     if (result.match(/(Webdl|Web-dl|WEB[\. ])/i) && !raw_info.name.match(/webrip/i)) {
         result = 'WEB-DL';
     } else if (result.match(/(UHDTV)/i)) {
@@ -2694,9 +2707,9 @@ String.prototype.medium_sel = function() { //媒介
         result = 'HDTV';
     } else if (result.match(/(Remux)/i) && ! result.match(/Encode/)) {
         result = 'Remux';
-    } else if (result.match(/(Blu-ray|.MPLS|Bluray原盘)/i) && !result.match(/Encode/i)) {
+    } else if (result.match(/(Blu-ray|.MPLS|Bluray原盘)/i) && !result.match(/Encode/i) && !is_encode_named) {
         result = 'Blu-ray';
-    } else if (result.match(/(UHD|UltraHD)/i) && !result.match(/Encode/i)) {
+    } else if (result.match(/(UHD|UltraHD)/i) && !result.match(/Encode/i) && !is_encode_named) {
         result = 'UHD';
     } else if (result.match(/(Encode|BDRIP|webrip|BluRay)/i) || result.match(/(x|H).?(264|265)/i)) {
         result = 'Encode';
@@ -13863,6 +13876,31 @@ function auto_feed() {
             } catch (err) {}
             raw_info.name = $('h1.torrent__name').text().trim();
             raw_info.type = $('li.torrent__category').text().get_type();
+
+            // assast UNIT3D(BLU/Tik/Aither)详情页的 Type 字段才是权威媒介,直接采用,别再靠标题猜。
+            // 之前不读这里,medium_sel() 只能拿标题去猜,像
+            // "xxx 2160p UHD BluRay FLAC 2.0 DV HDR x265-XXX" 这种压制会被 UHD 分支抢先判成原盘,
+            // 转到其他站媒介就填成了 UHD/Blu-ray 原盘,实际应该是 Encode/BDRip。
+            try {
+                var unit3d_type = $('li.torrent__type').first().text().trim();
+                if (unit3d_type) {
+                    if (unit3d_type.match(/remux/i)) {
+                        raw_info.medium_sel = 'Remux';
+                    } else if (unit3d_type.match(/full\s*disc|^disc$|BD(25|50|66|100)/i)) {
+                        // Full Disc: 先给 Blu-ray,后面 fill_raw_info 里会按 UHD/2160p 自动升级成 UHD
+                        raw_info.medium_sel = 'Blu-ray';
+                    } else if (unit3d_type.match(/encode|bd\s*-?rip|br\s*-?rip/i)) {
+                        raw_info.medium_sel = 'Encode';
+                    } else if (unit3d_type.match(/web/i)) {
+                        // WEB-DL / WEBRip 本脚本统一按 WEB-DL 媒介处理
+                        raw_info.medium_sel = 'WEB-DL';
+                    } else if (unit3d_type.match(/hdtv/i)) {
+                        raw_info.medium_sel = 'HDTV';
+                    } else if (unit3d_type.match(/dvd/i)) {
+                        raw_info.medium_sel = 'DVD';
+                    }
+                }
+            } catch (err) {}
 
             var img_urls = '';
             try {
@@ -32721,3 +32759,4 @@ if (!checkRawInfo()) {
         clearInterval(interval);
     }, 60000);
 }
+
