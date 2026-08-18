@@ -32,6 +32,8 @@
 // @match        https://next.m-team.cc/upload*
 // @match        https://next.m-team.cc/detail*
 // @match        https://blutopia.cc/torrents/create*
+// @match        https://lst.gg/torrents*
+// @match        https://lst.gg/torrents/*
 // @match        https://secret-cinema.pw/torrents.php?id=*
 // @match        https://filelist.io/*
 // @match        https://bluebird-hd.org/*
@@ -99,7 +101,7 @@
 // @require      https://update.greasyfork.org/scripts/444988/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.1.12
+// @version      3.1.13
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -788,7 +790,7 @@ if (site_url.match(/^https:\/\/hdf\.world\/torrents\.php/i) && !site_url.match(/
     return;
 }
 //处理blutopia跳转检索，因为其使用ajax异步检索
-if (site_url.match(/(blutopia.cc|darkland.top|eiga.moi|hd-olimpo.club|aither.cc|cinematik.net)\/torrents\?imdb(id)?=.*/)){
+if (site_url.match(/(blutopia.cc|darkland.top|eiga.moi|hd-olimpo.club|aither.cc|cinematik.net|lst.gg)\/torrents\?imdb(id)?=.*/)){
     if (site_url.match(/blutopia.cc/i)) {
         $('div.form-group:contains(IMDb)').find('input').val(site_url.split('=')[1].split('&')[0]);
         $('button.btn-primary:contains(Advanced)').click();
@@ -810,7 +812,7 @@ if (site_url.match(/^https:\/\/passthepopcorn.me\/torrents.php\?id=\d+&torrentid
     window.open($(`a[href*="action=download&id=${tid}"]`).attr('href'), '_blank');
 }
 // assast aither.cc转完自动下载
-if (site_url.match(/^https:\/\/(blutopia.cc|pt.hdpost.top|darkland.top|eiga.moi|hd-olimpo.club|aither.cc|fearnopeer.com)\/torrents\/download_check/)) {
+if (site_url.match(/^https:\/\/(blutopia.cc|pt.hdpost.top|darkland.top|eiga.moi|hd-olimpo.club|aither.cc|fearnopeer.com|lst.gg)\/torrents\/download_check/)) {
     window.open($('a[href*="torrents/download"]').has('i').attr('href'), '_self');
     return;
 }
@@ -1071,6 +1073,7 @@ const default_site_info = {
     'NJTUPT': {'url': 'https://njtupt.top/', 'enable': 1},
     'LemonHD': {'url': 'https://lemonhd.club/', 'enable': 1},
     'ReelFliX': {'url': 'https://reelflix.xyz/', 'enable': 1},
+    'LST': {'url': 'https://lst.gg/', 'enable': 1},
     'HDClone': {'url': 'https://pt.hdclone.org/', 'enable': 1},
     'CDFile': {'url': 'https://pt.cdfile.org/', 'enable': 1},
     'HDBAO': {'url': 'https://hdbao.cc/', 'enable': 1},
@@ -1238,6 +1241,7 @@ const default_search_list = [
     `<a href="https://blutopia.cc/torrents?imdbid={imdbno}&perPage=25&imdbId={imdbno}" target="_blank">BLU</a>`,
     `<a href="https://secret-cinema.pw/torrents.php?action=advanced&searchsubmit=1&filter_cat=1&cataloguenumber={imdbid}" target="_blank">SC</a>`,
     `<a href="https://darkland.top/torrents?imdbId={imdbid}#page/1" target="_blank">DarkLand</a>`,
+    `<a href="https://lst.gg/torrents?imdbId={imdbid}" target="_blank">LST</a>`,
     `<a href="https://totheglory.im/browse.php?search_field=imdb{imdbno}&c=M" target="_blank">TTG</a>`,
     `<a href="https://hd-torrents.org/torrents.php?&search={imdbid}&active=0" target="_blank">HDT</a>`,
     `<a href="https://hd-space.org/index.php?page=torrents&search={imdbno}&active=1&options=2" target="_blank">HDSpace</a>`,
@@ -1400,6 +1404,7 @@ const o_site_info = {
     'SpeedApp': 'https://speedapp.io/',
     'MTeam': used_site_info.MTeam.url,
     'ReelFliX': 'https://reelflix.xyz/',
+    'LST': 'https://lst.gg/',
     'HHClub': 'https://hhanclub.net/',
     'SportsCult': 'https://sportscult.org/'
 };
@@ -2296,7 +2301,7 @@ function walkDOM(n) {
         } else if (n.nodeName == '#text' && site_url.match(/npupt/)) {
             n.data = n.data.replace(/^ +| +$/g, '');
         } else if (n.nodeName == 'BR') {
-            if (site_url.match(/u2.dmhy.org|ourbits.club|hd-space.org|totheglory.im|blutopia.cc|star-space.net|torrent.desi|hudbt|fearnopeer.com|darkland.top|onlyencodes.cc|cinemageddon|eiga.moi|hd-olimpo.club|digitalcore.club|bwtorrents.tv|myanonamouse|greatposterwall.com|m-team.cc/i)) {
+            if (site_url.match(/u2.dmhy.org|ourbits.club|hd-space.org|totheglory.im|blutopia.cc|star-space.net|torrent.desi|hudbt|fearnopeer.com|darkland.top|onlyencodes.cc|cinemageddon|eiga.moi|hd-olimpo.club|digitalcore.club|bwtorrents.tv|myanonamouse|greatposterwall.com|m-team.cc|lst.gg/i)) {
                 n.innerHTML = '\r\n';
             }
         } else if (n.nodeName == 'LEGEND') {
@@ -2500,7 +2505,7 @@ function judge_if_the_site_as_source() {
     if (site_url.match(/^https:\/\/hdcity.city\/upload/)){
         return 2;
     }
-    if (site_url.match(/^https:\/\/(www.)?(darkland.top|eiga.moi|hd-olimpo.club|fearnopeer.com|onlyencodes.cc|blutopia.cc|aither.cc|torrent.desi|monikadesign.uk|hawke.uno|cinematik.net|reelflix.xyz)\/torrents\/\d+$/)){
+    if (site_url.match(/^https:\/\/(www.)?(darkland.top|eiga.moi|hd-olimpo.club|fearnopeer.com|onlyencodes.cc|blutopia.cc|aither.cc|torrent.desi|monikadesign.uk|hawke.uno|cinematik.net|reelflix.xyz|lst.gg)\/torrents\/\d+$/)){
         return 1;
     }
     if (site_url.match(/^https:\/\/(www.)?torrentseeds.org\/torrents\/\d+/)){
@@ -4211,7 +4216,7 @@ function init_buttons_for_transfer(container, site, mode, raw_info) {
             textarea.style.width = '530px';
         }
     } else {
-        if (['BHD', 'BLU', 'Tik', 'ACM', 'HDOli', 'Monika', 'DTR', 'HONE', 'Aither', 'FNP', 'OnlyEncodes', 'DarkLand', 'ReelFliX', 'IN'].indexOf(site) > -1){
+        if (['BHD', 'BLU', 'Tik', 'ACM', 'HDOli', 'Monika', 'DTR', 'HONE', 'Aither', 'FNP', 'OnlyEncodes', 'DarkLand', 'ReelFliX', 'LST', 'IN'].indexOf(site) > -1){
             $('#douban_button,#ptgen_button,#search_button,#download_pngs').css({"border": "1px solid #0D8ED9", "color": "#FFFFFF", "backgroundColor": "#292929"});
             if (site == 'HONE') {
                 $('#douban_button,#ptgen_button,#search_button,#download_pngs').css({"width": "80px"})
@@ -4238,7 +4243,7 @@ function init_buttons_for_transfer(container, site, mode, raw_info) {
     }
 
     //把白框换个颜色
-    if (['PTP', 'xthor', 'HDF', 'BHD', 'BLU', 'Tik', 'Aither', 'TorrentLeech', 'DarkLand', 'ACM', 'HDOli', 'Monika', 'DTR', 'HONE', 'FNP', 'OnlyEncodes', 'ReelFliX'].indexOf(site) > -1) {
+    if (['PTP', 'xthor', 'HDF', 'BHD', 'BLU', 'Tik', 'Aither', 'TorrentLeech', 'DarkLand', 'ACM', 'HDOli', 'Monika', 'DTR', 'HONE', 'FNP', 'OnlyEncodes', 'ReelFliX', 'LST'].indexOf(site) > -1) {
         textarea.style.backgroundColor = '#4d5656';
         textarea.style.color = 'white';
         input_box.style.backgroundColor = '#4d5656';
@@ -4937,7 +4942,7 @@ function set_jump_href(raw_info, mode) {
                     forward_url = used_site_info[key].url + 'upload';
                 } else if (key == '影') {
                     forward_url = used_site_info[key].url + 'p_torrent/video_upload.php';
-                } else if (key == 'Aither' || key == 'FNP' || key == 'OnlyEncodes' || key == 'DarkLand' || key == 'ReelFliX') {
+                } else if (key == 'Aither' || key == 'FNP' || key == 'OnlyEncodes' || key == 'DarkLand' || key == 'ReelFliX' || key == 'LST') {
                     var type_dict = {'电影': 1, '剧集': 2, '动漫': 2, '综艺': 2, '纪录': 2, '音乐': 3, '体育': 2, 'MV': 3};
                     if (raw_info.type == '纪录' && !raw_info.name.match(/S\d+|E\d+/)) {
                         type_dict.纪录 = 1;
@@ -5003,7 +5008,10 @@ function set_jump_href(raw_info, mode) {
                         forward_url = used_site_info[key].url + `browse?keyword=${search_name}`;
                     } else if (key == 'TVV') {
                         forward_url = used_site_info[key].url + 'torrents.php?action=advanced&searchstr=&searchtags=&tags_type=1&groupdesc=&imdbid={url}'.format({'url': url});
-                    } else if (key == 'DarkLand' || key == 'ACM' || key == 'BLU' || key == 'Monika' || key == 'Tik' || key == 'Aither' || key == 'FNP' || key == 'OnlyEncodes' || key == 'ReelFliX') {
+                    } else if (key == 'LST') {
+                        // assast LST 查重:https://lst.gg/torrents?imdbId=tt1234567
+                        forward_url = used_site_info[key].url + 'torrents?imdbId={imdbid}'.format({'imdbid': url});
+                    } else if (key == 'DarkLand' || key == 'ACM' || key == 'BLU' || key == 'Monika' || key == 'Tik' || key == 'Aither' || key == 'FNP' || key == 'OnlyEncodes' || key == 'ReelFliX' || key == 'LST') {
                         forward_url = used_site_info[key].url + 'torrents?imdbId={imdbid}#page/1'.format({'imdbid': url});
                     } else {
                         forward_url = used_site_info[key].url + 'torrents.php?incldead=0&spstate=0&inclbookmarked=0&search={url}&search_area=4&search_mode=0'.format({'url': url});
@@ -5059,6 +5067,8 @@ function set_jump_href(raw_info, mode) {
                         forward_url = used_site_info[key].url + `browse?keyword=${search_name}`;
                     } else if (key == 'Tik') {
                         forward_url = used_site_info[key].url + `torrents?view=list&name=${search_name}`;
+                    } else if (key == 'LST') {
+                        forward_url = used_site_info[key].url + `torrents?name=${search_name}`;
                     } else {
                         forward_url = used_site_info[key].url + 'torrents.php?incldead=0&spstate=0&inclbookmarked=0&search={name}&search_area=0&search_mode=0'.format({'name': search_name});
                     }
@@ -5744,7 +5754,7 @@ function inject_files_to_input(file_input, files) {
 }
 
 function fill_torrent(forward_site, container, name) {
-    if (['BHD', 'BLU', 'Tik', 'ACM', 'HDSpace', 'xthor', 'Monika', 'Aither', 'FNP', 'OnlyEncodes', 'DarkLand', 'ReelFliX'].indexOf(forward_site) > -1) {
+    if (['BHD', 'BLU', 'Tik', 'ACM', 'HDSpace', 'xthor', 'Monika', 'Aither', 'FNP', 'OnlyEncodes', 'DarkLand', 'ReelFliX', 'LST'].indexOf(forward_site) > -1) {
         const selectors = [
             '#torrent',
             'input[type="file"]#torrent',
@@ -8140,7 +8150,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
             log_in(['IN'], '#nav');
             log_in(['影'], '#nav_menu');
 
-            log_in(['BLU', 'HDOli', 'Monika', 'Tik', 'Aither', 'FNP', 'OnlyEncodes', 'DarkLand', 'ReelFliX'], 'nav[class="top-nav"]');
+            log_in(['BLU', 'HDOli', 'Monika', 'Tik', 'Aither', 'FNP', 'OnlyEncodes', 'DarkLand', 'ReelFliX', 'LST'], 'nav[class="top-nav"]');
             log_in(['DTR', 'ZHUQUE'], 'nav[class="container mx-auto"]');
             log_in(['ACM'], 'ul[class="left-navbar"]');
 
@@ -11420,7 +11430,7 @@ function auto_feed() {
             }
         }
 
-        if (origin_site == 'FNP' || origin_site == 'OnlyEncodes' || origin_site == 'DarkLand' || origin_site == 'ReelFliX') {
+        if (origin_site == 'FNP' || origin_site == 'OnlyEncodes' || origin_site == 'DarkLand' || origin_site == 'ReelFliX' || origin_site == 'LST') {
             raw_info.url = match_link('imdb', $('section.meta').html());
             raw_info.type = $('.torrent__tags').text().get_type();
             raw_info.name = $('h1.torrent__name').text().trim().match(/([\u4e00-\u9fa5]* )?(.*)/)[2];
@@ -11450,7 +11460,7 @@ function auto_feed() {
             });
             raw_info.descr = strip_img_proxy(raw_info.descr);
             raw_info.torrent_url = $('a[href*="download/"]').attr('href');
-            if (raw_info.url && all_sites_show_douban && (origin_site == 'FNP' || origin_site == 'OnlyEncodes' || origin_site == 'ReelFliX')) {
+            if (raw_info.url && all_sites_show_douban && (origin_site == 'FNP' || origin_site == 'OnlyEncodes' || origin_site == 'ReelFliX' || origin_site == 'LST')) {
                 getData(raw_info.url, function(data){
                     console.log(data);
                     if (data.data) {
@@ -14426,7 +14436,7 @@ function auto_feed() {
                 box_left.innerHTML = '豆瓣信息';
                 if (origin_site == 'NBL' || origin_site == 'IPT' || origin_site == 'torrentseeds' || origin_site == 'HONE') {
                     box_left.style.width = '60px';
-                } else if (['IN', 'digitalcore', 'BlueBird', 'bwtorrents', 'HOU', 'BLU', 'Tik', 'Aither', 'DarkLand', 'FNP', 'OnlyEncodes', 'ReelFliX'].indexOf(origin_site) >= 0) {
+                } else if (['IN', 'digitalcore', 'BlueBird', 'bwtorrents', 'HOU', 'BLU', 'Tik', 'Aither', 'DarkLand', 'FNP', 'OnlyEncodes', 'ReelFliX', 'LST'].indexOf(origin_site) >= 0) {
                     box_left.style.width = '80px';
                 }
                 box_left.align = direct;
@@ -17032,7 +17042,7 @@ function auto_feed() {
 
         if (['CMCT', 'PTsbao', 'HDCity', 'BLU', 'UHD', 'HDSpace', 'HDB', 'iTS', 'PTP', 'BYR', 'GPW', 'HDTime', 'HD-Only', 'HDfans',
         'SC', 'MTV', 'NBL', 'avz', 'PHD', 'CNZ', 'ANT', 'TVV', 'xthor', 'HDF', 'OpenCD', 'PigGo', 'DICMusic', 'RED', 'Tik', 'Aither', 'SugoiMusic', 'CG',
-        'ZHUQUE', 'MTeam', 'FNP', 'OnlyEncodes', 'YemaPT', 'DarkLand', '影', 'PTLGS', 'ReelFliX'].indexOf(forward_site) < 0){
+        'ZHUQUE', 'MTeam', 'FNP', 'OnlyEncodes', 'YemaPT', 'DarkLand', '影', 'PTLGS', 'ReelFliX', 'LST'].indexOf(forward_site) < 0){
             if (forward_site == 'HDT') {
                 descr_box[0].style.height = '600px';
                 var mediainfo_hdt = get_mediainfo_picture_from_descr(raw_info.descr);
@@ -18433,9 +18443,9 @@ function auto_feed() {
             $('#anonymous').prop('checked', if_uplver);
         } else if (forward_site == 'HDSpace') {
             $('input[name="anonymous"]:eq(1)').prop('checked', if_uplver);
-        } else if (forward_site == 'FNP' || forward_site == 'OnlyEncodes' || forward_site == 'ReelFliX') {
+        } else if (forward_site == 'FNP' || forward_site == 'OnlyEncodes' || forward_site == 'ReelFliX' || forward_site == 'LST') {
             $('#anon').prop('checked', if_uplver);
-        } else if (['BLU', 'Tik', 'Aither', 'BHD', 'iTS', 'PTP', 'ACM', 'Monika', 'DarkLand'].indexOf(forward_site) < 0){
+        } else if (['BLU', 'Tik', 'Aither', 'BHD', 'iTS', 'PTP', 'ACM', 'Monika', 'DarkLand', 'LST'].indexOf(forward_site) < 0){
             setTimeout(()=>{
                 try {
                     document.getElementsByName('uplver')[0].checked = if_uplver;
@@ -18456,6 +18466,10 @@ function auto_feed() {
                 torrent_box.parentNode.innerHTML = '<label for="torrent" class="form__label">Torrent 文件</label><input class="upload-form-file form__file" type="file" accept=".torrent" name="torrent" id="torrent" required="">';
             } else if (forward_site == 'BLU') {
                 // Keep BLU original input node to avoid breaking site-side bindings.
+            } else if (forward_site == 'LST') {
+                // assast LST 原始 input 上挂着 @change="uploadExtension.hook(); cat = $refs.catId.value",
+                // 选种子时会把分类重置回 catId 当前值并触发解析器改标题,所以换成不带 Alpine 绑定的干净节点
+                torrent_box.parentNode.innerHTML = '<label for="torrent" class="form__label">Torrent File</label><input class="upload-form-file form__file" type="file" accept=".torrent" name="torrent" id="torrent" required="">';
             } else if (forward_site == 'Tik' || forward_site == 'Aither') {
                 torrent_box.parentNode.innerHTML = '<label for="torrent" class="form__label">Torrent File</label><input class="upload-form-file form__file" type="file" accept=".torrent" name="torrent" id="torrent" required="" x-bind="torrentFile">';
             } else if (forward_site != 'xthor') {
@@ -24416,7 +24430,7 @@ function auto_feed() {
             $('textarea[name="info"]').val(mediainfo_hdt);
         }
 
-        else if (['BLU', 'ACM', 'Monika', 'Tik', 'Aither', 'FNP', 'OnlyEncodes', 'ReelFliX'].indexOf(forward_site) > -1) {
+        else if (['BLU', 'ACM', 'Monika', 'Tik', 'Aither', 'FNP', 'OnlyEncodes', 'ReelFliX', 'LST'].indexOf(forward_site) > -1) {
             if (forward_site == 'BLU') {
                 var announce = $('a[href*="https://blutopia.cc/announce/"]').attr('href');
             } else if (forward_site == 'Tik') {
@@ -24451,7 +24465,7 @@ function auto_feed() {
                 el.dispatchEvent(new Event('input', { bubbles: true }));
                 el.dispatchEvent(new Event('change', { bubbles: true }));
             }
-            if (forward_site == 'BLU' || forward_site == 'Aither') {
+            if (forward_site == 'BLU' || forward_site == 'Aither' || forward_site == 'LST') {
                 ['auto_tmdb_movie', 'auto_tmdb_tv', 'autoimdb', 'autotvdb', 'automal'].forEach(defuseAlpineInput);
             }
             if (forward_site == 'Monika') {
@@ -24588,7 +24602,7 @@ function auto_feed() {
                 if (raw_info.name.match(/webrip/i)) {
                     source_box.value = 5;
                 }
-            } else if (forward_site == 'Aither') {
+            } else if (forward_site == 'Aither' || forward_site == 'LST') {
                 // assast Aither type 值: 1=Full Disc, 2=Remux, 3=Encode, 4=WEB-DL, 5=WEBRip, 6=HDTV, 7=Other
                 // 必须用 setAlpineSelect 派发 change,Alpine 才会更新 reactive type 状态,
                 // 进而通过 x-show="types[type].name === 'Full Disc'" 显示 distributor/region/BDInfo
@@ -24619,6 +24633,33 @@ function auto_feed() {
                     if (aitherHasDV) clickAitherMeta('is_dv');
                     if (aitherHasHDR10p) clickAitherMeta('is_hdr10p');
                     else if (aitherHasHDR) clickAitherMeta('is_hdr');
+
+                    // assast LST 没有 is_dv/is_hdr 复选框,改用 hdr_dv 单选下拉
+                    if (forward_site == 'LST' && document.getElementById('hdr_dv')) {
+                        var lstHdrVal = '';
+                        if (aitherHasDV) {
+                            var dvProfile = '8';
+                            var dvMatch = aitherProbe.match(/dvh[e1]\.(\d+)/i) || aitherProbe.match(/(?:Dolby\s*Vision.{0,40}?)Profile\s*(\d+)/i);
+                            if (dvMatch) dvProfile = String(parseInt(dvMatch[1]));
+                            if (dvProfile == '5') {
+                                lstHdrVal = 'DV P5';
+                            } else if (aitherHasHDR10p) {
+                                lstHdrVal = 'DV P' + dvProfile + ' HDR10+';
+                            } else {
+                                lstHdrVal = 'DV P' + dvProfile + ' HDR';
+                            }
+                        } else if (aitherHasHDR10p) {
+                            lstHdrVal = 'HDR10+';
+                        } else if (/\bHLG\b/i.test(aitherProbe)) {
+                            lstHdrVal = 'HLG';
+                        } else if (aitherHasHDR) {
+                            lstHdrVal = 'HDR10';
+                        }
+                        // 下拉里没有的组合(比如奇怪的 profile)就不填,避免选到空值
+                        if (lstHdrVal && $(`#hdr_dv>option[value="${lstHdrVal}"]`).length) {
+                            setAlpineSelect('hdr_dv', lstHdrVal);
+                        }
+                    }
                 } catch (err) {}
             } else {
                 switch(raw_info.medium_sel){
@@ -24824,6 +24865,20 @@ function auto_feed() {
                 $('#automal').val(0);
             }
             $('#anime_exists_on_mal').prop("checked", false);
+            // assast LST 这类新版 UNIT3D 的 "exists on X" 复选框由 Alpine x-model 驱动,prop() 改不动 Alpine 状态,必须 click()。
+            // IMDB / TMDB 保持默认勾选(TMDB 的 movie / tv 两组本来就按 cats[cat].type 各自 x-show + required,不会互相卡住);
+            // 只有 MAL 和 TVDB 是脚本填不出来的、勾着就 required,所以取消勾选。
+            if (forward_site == 'LST') {
+                var lstToggleExists = function(id, keep) {
+                    var el = document.getElementById(id);
+                    if (el && el.checked !== !!keep) el.click();
+                };
+                lstToggleExists('anime_exists_on_mal', false);
+                lstToggleExists('tv_exists_on_tvdb', false);
+                lstToggleExists('title_exists_on_imdb', true);
+                lstToggleExists('movie_exists_on_tmdb', true);
+                lstToggleExists('tv_exists_on_tmdb', true);
+            }
             var event = new Event('input', { bubbles: true });
             try{
                 var infos = get_mediainfo_picture_from_descr(raw_info.descr);
@@ -24850,7 +24905,7 @@ function auto_feed() {
                 container.css({'height': '600px'});
                 var pic_info;
                 // assast 图片自动350
-                if (forward_site == 'BLU' || forward_site == 'Tik' || forward_site == 'Aither'){
+                if (forward_site == 'BLU' || forward_site == 'Tik' || forward_site == 'Aither' || forward_site == 'LST'){
                     pic_info = deal_img_350_ptpimg(infos.pic_info);
                     // DreamRu大佬说不要了
                     // if (raw_info.name.match(/DV HDR/i)) {
@@ -24890,6 +24945,31 @@ function auto_feed() {
                     $('#bbcode-description').val(pic_info);
                     try { $('#upload-form-description')[0].dispatchEvent(event); } catch (err) {}
                     try { $('#bbcode-description')[0].dispatchEvent(event); } catch (err) {}
+                }
+                // assast LST 的描述框在 Livewire 组件里(wire:model="contentBbcode"),
+                // Livewire 水合 / 每次 morph 都会按服务端快照(空串)把 textarea 刷回去,
+                // 所以要用原生 setter 写值 + 派发 input/change 让 Livewire 同步,并在水合完成后补写几次
+                if (forward_site == 'LST') {
+                    var lst_descr_text = pic_info;
+                    var lst_write_descr = function(force) {
+                        var ta = document.getElementById('bbcode-description');
+                        if (!ta || !lst_descr_text) return;
+                        // 补写只在框被 Livewire 刷空时进行,用户自己编辑过(含 IMG350)就不再覆盖
+                        if (!force && ta.value !== '') return;
+                        try {
+                            var setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+                            setter.call(ta, lst_descr_text);
+                        } catch (err) {
+                            ta.value = lst_descr_text;
+                        }
+                        ta.dispatchEvent(new Event('input', { bubbles: true }));
+                        ta.dispatchEvent(new Event('change', { bubbles: true }));
+                        ta.style.height = '400px';
+                    };
+                    lst_write_descr(true);
+                    [300, 800, 1500, 3000, 5000].forEach(function(delay){
+                        setTimeout(lst_write_descr, delay);
+                    });
                 }
             } catch(Err) {
                 if (raw_info.full_mediainfo){
