@@ -101,7 +101,7 @@
 // @require      https://update.greasyfork.org/scripts/444988/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.1.13
+// @version      3.1.14
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -3239,7 +3239,7 @@ function strip_img_proxy(text) {
 function find_unit3d_backup_action(wrapper, keyword) {
     var href = '';
     try {
-        $(wrapper).find('a.bbcode-description-backup-image--action').each(function() {
+        $(wrapper).find('a.bbcode-description-backup-image--action, a.bbcode-image__action').each(function() {
             var title = ($(this).attr('title') || '').toLowerCase();
             if (title.indexOf(keyword) > -1 && $(this).attr('href')) {
                 href = $(this).attr('href');
@@ -3254,16 +3254,23 @@ function get_unit3d_backup_image_map(root) {
     var map = {};
     try {
         var scope = root ? $(root) : $(document);
-        scope.find('.bbcode-description-backup-image--wrapper').each(function() {
+        scope.find('.bbcode-description-backup-image--wrapper, .bbcode-image').each(function() {
             var $wrapper = $(this);
             var origin = find_unit3d_backup_action($wrapper, 'original');
             if (!origin) return;
             origin = strip_img_proxy(origin.trim());
             var backup = find_unit3d_backup_action($wrapper, 'backup');
-            if (backup) map[strip_img_proxy(backup.trim())] = origin;
+            // 备份链接和原图一样(比如 LST 这种没开图片备份、只有 "Original source" 按钮的皮肤)就不入表,
+            // 免得 map 非空让 Copy 劫持之类的逻辑误以为开了备份
+            if (backup) {
+                backup = strip_img_proxy(backup.trim());
+                if (backup !== origin) map[backup] = origin;
+            }
             $wrapper.find('img').each(function() {
                 var src = $(this).attr('src') || this.src || '';
-                if (src) map[strip_img_proxy(src.trim())] = origin;
+                if (!src) return;
+                src = strip_img_proxy(src.trim());
+                if (src !== origin) map[src] = origin;
             });
         });
     } catch (err) {}
@@ -3275,7 +3282,7 @@ function get_unit3d_origin_img_src(img_el) {
     var src = '';
     try {
         src = img_el.getAttribute('src') || img_el.src || '';
-        var wrapper = img_el.closest ? img_el.closest('.bbcode-description-backup-image--wrapper') : null;
+        var wrapper = img_el.closest ? img_el.closest('.bbcode-description-backup-image--wrapper, .bbcode-image') : null;
         if (wrapper) {
             var origin = find_unit3d_backup_action(wrapper, 'original');
             if (origin) src = origin.trim();
@@ -3332,7 +3339,7 @@ function get_unit3d_description_bbcode() {
 // 页面没开图片备份（没有 wrapper）时不拦截，保持站点原行为。
 function hijack_unit3d_description_copy() {
     try {
-        var btn = $('h2.panel__heading:contains("Description"), h2.panel__heading:contains("描述")')
+        var btn = $('h2.panel__heading:contains("Description"), h2.panel__heading:contains("描述"), h2.torrent-section__title:contains("Description"), h2.torrent-section__title:contains("描述")')
             .closest('header').find('button')
             .filter(function(){ return /copy|复制/i.test($(this).text()); })[0];
         if (!btn || btn.getAttribute('data-af-origin-copy')) return;
@@ -11430,7 +11437,7 @@ function auto_feed() {
             }
         }
 
-        if (origin_site == 'FNP' || origin_site == 'OnlyEncodes' || origin_site == 'DarkLand' || origin_site == 'ReelFliX' || origin_site == 'LST') {
+        if (origin_site == 'FNP' || origin_site == 'OnlyEncodes' || origin_site == 'DarkLand' || origin_site == 'ReelFliX') {
             raw_info.url = match_link('imdb', $('section.meta').html());
             raw_info.type = $('.torrent__tags').text().get_type();
             raw_info.name = $('h1.torrent__name').text().trim().match(/([\u4e00-\u9fa5]* )?(.*)/)[2];
@@ -11460,7 +11467,7 @@ function auto_feed() {
             });
             raw_info.descr = strip_img_proxy(raw_info.descr);
             raw_info.torrent_url = $('a[href*="download/"]').attr('href');
-            if (raw_info.url && all_sites_show_douban && (origin_site == 'FNP' || origin_site == 'OnlyEncodes' || origin_site == 'ReelFliX' || origin_site == 'LST')) {
+            if (raw_info.url && all_sites_show_douban && (origin_site == 'FNP' || origin_site == 'OnlyEncodes' || origin_site == 'ReelFliX')) {
                 getData(raw_info.url, function(data){
                     console.log(data);
                     if (data.data) {
@@ -11469,6 +11476,122 @@ function auto_feed() {
                         if (data.data.votes) score += `|${data.data.votes}人`;
                         $('h1.meta__title').append(`<span> | </span><a href="${douban_prex}${data.data.id}" target="_blank" style="display: inline; width: auto; border-bottom: 0px !important; text-decoration: none; color: #d3d3d3; font-weight: bold;">${data.data.title.split(' ')[0]}[${score}]</a>`);
                         $('p.meta__description,span.movie-overview').text(data.data.summary.replace(/ 　　/g, ''));
+                    }
+                });
+            }
+        }
+
+        // assast LST(lst.gg)的种子详情页是重画过的新版 UNIT3D 皮肤:
+        // 类名从 torrent__name / panel__heading / section.meta 换成了 torrent-header__title /
+        // torrent-section / torrent-meta__*,所以不能复用 FNP/ReelFliX 那套选择器,单独处理。
+        if (origin_site == 'LST') {
+            var lst_ids_html = $('div.torrent-meta__external-ids').html() || '';
+            raw_info.url = match_link('imdb', lst_ids_html);
+            raw_info.tmdb_url = match_link('tmdb', lst_ids_html);
+            raw_info.tvdb_url = match_link('tvdb', lst_ids_html);
+
+            raw_info.name = $('h1.torrent-header__title').text().trim();
+            // 分类用 meta-bar 上那颗(Movies / TV / Music ...),不要用 torrent-meta__tag--category,
+            // 那里写的是 "TV show",会被 get_type() 判成"综艺"
+            raw_info.type = $('a.torrent-meta-bar__tag--category').first().text().get_type();
+
+            // 详情页的 Type 字段(WEB-DL / Remux / Encode / Full Disc ...)才是权威媒介,别靠标题猜
+            try {
+                var lst_type = $('a.torrent-meta-bar__tag[href*="typeIds"]').first().text().trim();
+                if (lst_type) {
+                    if (lst_type.match(/remux/i)) {
+                        raw_info.medium_sel = 'Remux';
+                    } else if (lst_type.match(/full\s*disc|^disc$|BD(25|50|66|100)/i)) {
+                        // Full Disc 先给 Blu-ray,后面 fill_raw_info 会按 UHD/2160p 自动升级成 UHD
+                        raw_info.medium_sel = 'Blu-ray';
+                    } else if (lst_type.match(/encode|bd\s*-?rip|br\s*-?rip/i)) {
+                        raw_info.medium_sel = 'Encode';
+                    } else if (lst_type.match(/web/i)) {
+                        raw_info.medium_sel = 'WEB-DL';
+                    } else if (lst_type.match(/sdtv|hdtv/i)) {
+                        raw_info.medium_sel = 'HDTV';
+                    }
+                }
+            } catch (err) {}
+
+            // mediainfo / BDInfo:结构和其他 UNIT3D 一样挂在 code[x-ref] 上
+            var lst_mediainfo = '';
+            try {
+                var lst_bdinfo = $('code[x-ref="bdinfo"]').text().trim();
+                var lst_mi = $('code[x-ref="mediainfo"]').text().trim();
+                lst_mediainfo = lst_bdinfo || lst_mi;
+                if (lst_mediainfo) {
+                    raw_info.full_mediainfo = lst_mediainfo;
+                }
+            } catch (err) {}
+
+            // 描述:优先取 Alpine.data('description') 里 base64 存的原始 BBCode(截图带 [url] 包裹),
+            // 取不到再退回扫描 Description 区块里的 <img>
+            var lst_descr_body = $('section.torrent-section').filter(function() {
+                return /description|描述/i.test($(this).find('h2.torrent-section__title').first().text());
+            }).find('div.torrent-section__body');
+            hijack_unit3d_description_copy();
+            var lst_imgs = '';
+            try {
+                var lst_bbcode = get_unit3d_description_bbcode();
+                if (lst_bbcode) {
+                    // 站内备份图换回原图直链,再把 [img=500] 之类宽度去掉
+                    // (下游 get_mediainfo_picture_from_descr 只认不带宽度的 [img])
+                    lst_imgs = restore_unit3d_backup_images(lst_bbcode, get_unit3d_backup_image_map(lst_descr_body[0]))
+                        .replace(/\[img=[^\]]*\]/ig, '[img]');
+                }
+            } catch (err) {}
+            if (!lst_imgs) {
+                try {
+                    lst_descr_body.find('img').each(function() {
+                        var img_src = get_unit3d_origin_img_src(this);
+                        if (!img_src) return;
+                        var href = this.parentNode && this.parentNode.href;
+                        if (href) {
+                            lst_imgs += '[url=' + href + '][img]' + img_src + '[/img][/url] ';
+                        } else {
+                            lst_imgs += '[img]' + img_src + '[/img] ';
+                        }
+                    });
+                } catch (err) {}
+            }
+            lst_imgs = strip_img_proxy(lst_imgs || '');
+
+            raw_info.descr = (lst_mediainfo ? `[quote]\n${lst_mediainfo}\n[/quote]\n\n` : '') + lst_imgs;
+
+            raw_info.torrent_url = $('a.torrent-actions__btn--download').attr('href')
+                || $('a[href*="torrents/download/"]').attr('href');
+
+            // 按钮面板挂在下载按钮那一栏后面;万一站点改版找不到,退回种子标题栏,再不行就塞 body,
+            // 免得 tbody 取不到直接抛异常把整个转出流程带崩
+            var lst_anchor = $('section.torrent-actions');
+            if (!lst_anchor.length) lst_anchor = $('section.torrent-header');
+            var lst_panel = `
+                <div class="panelV2" style="margin-top:10px; padding:12px 18px; border-radius:5px; background-color:rgba(127,127,127,0.08)">
+                    <table id="mytable" style="width:100%">
+                    </table>
+                </div>
+            `;
+            if (lst_anchor.length) {
+                lst_anchor.first().after(lst_panel);
+            } else {
+                $('body').prepend(lst_panel);
+            }
+            tbody = $('#mytable')[0];
+            insert_row = tbody.insertRow(0);
+            douban_box = tbody.insertRow(0);
+
+            if (raw_info.url && all_sites_show_douban) {
+                getData(raw_info.url, function(data){
+                    console.log(data);
+                    if (data.data) {
+                        var score = data.data.average + '分';
+                        if (!score.replace('分', '')) score = '暂无评分';
+                        if (data.data.votes) score += `|${data.data.votes}人`;
+                        $('h1.torrent-meta__title').append(`<span> | </span><a href="${douban_prex}${data.data.id}" target="_blank" style="display: inline; width: auto; border-bottom: 0px !important; text-decoration: none; color: #d3d3d3; font-weight: bold;">${data.data.title.split(' ')[0]}[${score}]</a>`);
+                        if (data.data.summary && data.data.summary.length < 700) {
+                            $('p.torrent-meta__description').text(data.data.summary.replace(/ 　　/g, ''));
+                        }
                     }
                 });
             }
@@ -14416,7 +14539,7 @@ function auto_feed() {
             forward_l.innerHTML = "转发种子"; forward_l.valign = "top"; if (origin_site != 'MTeam') forward_l.style.fontWeight = "bold";
             if ((!judge_if_the_site_in_domestic() && no_need_douban_button_sites.indexOf(origin_site) < 0) || douban_button_needed) {
                 var direct;
-                if (['PHD', 'avz', 'CNZ', 'BLU', 'Tik', 'Aither', 'TorrentLeech', 'BHD', 'DarkLand', 'ACM', 'HDOli', 'Monika', 'DTR', 'HONE', 'OMG'].indexOf(origin_site) > -1) {
+                if (['PHD', 'avz', 'CNZ', 'BLU', 'Tik', 'Aither', 'TorrentLeech', 'BHD', 'DarkLand', 'ACM', 'HDOli', 'Monika', 'DTR', 'HONE', 'OMG', 'LST'].indexOf(origin_site) > -1) {
                     direct = "left";
                 } else {
                     direct = "right";
