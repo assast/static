@@ -101,7 +101,7 @@
 // @require      https://update.greasyfork.org/scripts/444988/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.1.14
+// @version      3.1.15
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -3332,38 +3332,74 @@ function get_unit3d_description_bbcode() {
     return result;
 }
 
-// 劫持 UNIT3D 种子页 Description 面板的 Copy 按钮：
-// 站点存的 BBCode 已被“图片备份”改写成 [url=展示页][img=350]自家备份缩略图[/img][/url]，
-// 直接复制出去发别的站就全是 350px 缩略图。这里在站点的 Alpine 监听之前（捕获阶段）拦下点击，
-// 用 DOM 里的原图直链替换掉备份链接、并去掉 [img=350] 的宽度，再写剪贴板。
-// 页面没开图片备份（没有 wrapper）时不拦截，保持站点原行为。
-function hijack_unit3d_description_copy() {
+// UNIT3D 站开了“描述图片备份”后，站点存的 BBCode 里 [img] 指向的是自家备份图床
+// （Aither 的 file.aither.cc / LST 的站内图床），点 Copy 复制出来发别的站就全是备份链接。
+// 每张图旁边的小按钮 title="Open original image" 挂着原始直链，这里把 [img] 里的备份链接
+// 换成那个原始直链，[url=展示页] 和 [img=350] 的宽度都原样保留。
+//
+// 站点的 copy() 长这样：
+//     navigator.clipboard.writeText(text.value); Swal.fire({...'Copied to clipboard!'});
+// 所以主路径直接包一层 navigator.clipboard.writeText，在参数落地之前把链接换掉：
+// 站点自己的流程一步不改 —— 按钮不动、toast 照弹、点几次都行，只是写进剪贴板的内容被换了。
+// （之前拦掉整个 click 能拿到正确内容，但站点的 Swal 也跟着不执行了，toast 就没了。）
+function af_fix_unit3d_backup_text(text) {
+    if (!text || typeof text !== 'string' || !/\[img/i.test(text)) return null;   // 只处理带图的描述，mediainfo / announce 的复制不碰
+    var map = get_unit3d_backup_image_map();
+    if (!Object.keys(map).length) return null;
+    var fixed = restore_unit3d_backup_images(text, map);
+    return fixed === text ? null : fixed;
+}
+
+var af_copy_fixed_by_wrapper = false;
+
+function install_unit3d_origin_copy() {
+    if (window.__af_unit3d_copy_hooked) return;
+    window.__af_unit3d_copy_hooked = true;
+
+    // 主路径：包一层 navigator.clipboard.writeText
     try {
-        var btn = $('h2.panel__heading:contains("Description"), h2.panel__heading:contains("描述"), h2.torrent-section__title:contains("Description"), h2.torrent-section__title:contains("描述")')
-            .closest('header').find('button')
-            .filter(function(){ return /copy|复制/i.test($(this).text()); })[0];
-        if (!btn || btn.getAttribute('data-af-origin-copy')) return;
-        btn.setAttribute('data-af-origin-copy', '1');
-        btn.title = 'auto_feed：复制时已把站点备份的缩略图换回原图直链';
-        btn.addEventListener('click', function(e) {
-            var map = get_unit3d_backup_image_map();
-            if (!Object.keys(map).length) return;   // 没开图片备份，交给站点自己复制
+        var cb = navigator.clipboard;
+        if (cb && typeof cb.writeText === 'function' && !cb.writeText.__af_wrapped) {
+            var origWriteText = cb.writeText.bind(cb);
+            var wrapped = function(text) {
+                try {
+                    var fixed = af_fix_unit3d_backup_text(text);
+                    if (fixed) {
+                        text = fixed;
+                        af_copy_fixed_by_wrapper = true;
+                    }
+                } catch (err) {}
+                return origWriteText(text);
+            };
+            wrapped.__af_wrapped = true;
+            cb.writeText = wrapped;
+        }
+    } catch (err) {}
+
+    // 兜底：万一油猴沙箱隔离导致上面那层包不上（站点仍拿到备份链接），
+    // 就在站点异步写入落地之后用 GM_setClipboard 覆盖一次。不拦 click，toast 照常。
+    document.addEventListener('click', function(e) {
+        try {
+            var target = e.target;
+            if (!target || !target.closest) return;
+            // 描述面板的复制按钮在各套皮肤里 class 都不一样，但都带 x-data="description"
+            // （MediaInfo 那个是 x-data="mediainfo"，不会误伤）
+            if (!target.closest('[x-data="description"]')) return;
+            af_copy_fixed_by_wrapper = false;
             var text = get_unit3d_description_bbcode();
             if (!text) return;
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            var fixed = restore_unit3d_backup_images(text, map).replace(/\[img=\d+\]/ig, '[img]');
-            try {
-                GM_setClipboard(fixed);
-            } catch (err) {
-                try { navigator.clipboard.writeText(fixed); } catch (err2) {}
-            }
-            var old_text = btn.textContent;
-            btn.textContent = '已复制原图!';
-            setTimeout(function(){ btn.textContent = old_text; }, 1500);
-        }, true);
-    } catch (err) {}
+            var fixed = af_fix_unit3d_backup_text(text);
+            if (!fixed) return;
+            [60, 250, 700].forEach(function(delay){
+                setTimeout(function(){
+                    if (af_copy_fixed_by_wrapper) return;   // 包装层已经换好了，不用再补
+                    try { GM_setClipboard(fixed); } catch (err) {}
+                }, delay);
+            });
+        } catch (err) {}
+    }, true);
 }
+try { install_unit3d_origin_copy(); } catch (err) {}
 
 // imgbb 新格式：[url=https://ibb.co/展示ID][img]https://i.ibb.co/缩略hash/文件名.png[/img][/url]
 // 缩略 hash ≠ 原图 hash，不能靠字符串替换；必须打开展示页，从 og:image 拿原图。
@@ -3487,10 +3523,26 @@ function get_full_size_picture_urls(raw_info, imgs, container, need_img_label, c
             if (img_urls[i].match(/\[url=(https:\/\/i\.ibb\.co\/[^\]]+)\]/i)) {
                 item = img_urls[i].match(/\[url=(https:\/\/i\.ibb\.co\/[^\]]+)\]/i)[1];
             }
-            if (item.match(/imgbox/)) {
+            // Chevereto 系图床(BLU 的 img.blutopia.cc 等):[img] 里是 xxx.md.png 缩略图,
+            // 外面 [url=] 指向的 xxx.png 就是原图,两者只差 .md / .th 一段。
+            // 只有"去掉这一段后正好等于 url"才采用,能对上就说明确实是同一张图,不存在猜错。
+            var chevereto_full = null;
+            var link_match = img_urls[i].match(/\[url=(https?:\/\/[^\]\s]+?)\]/i);
+            if (link_match && /\.(png|jpe?g|webp|gif|bmp)$/i.test(link_match[1])) {
+                var stripped = item.replace(/\.(md|th)(\.[A-Za-z0-9]+)$/i, '$2');
+                if (stripped !== item && stripped.toLowerCase() === link_match[1].toLowerCase()) {
+                    chevereto_full = link_match[1];
+                }
+            }
+            if (chevereto_full) {
+                item = chevereto_full;
+            } else if (item.match(/imgbox/)) {
                 item = item.replace('thumbs2', 'images2').replace('t.png', 'o.png');
             } else if (item.match(/pixhost/)) {
                 item = item.replace('//t', '//img').replace('thumbs', 'images');
+            } else if (item.match(/img\.blutopia\.cc/)) {
+                // 没有 [url] 包裹时的兜底:Chevereto 的 .md / .th 就是缩略图后缀,去掉即原图
+                item = item.replace(/\.(md|th)(\.[A-Za-z0-9]+)$/i, '$2');
             } else if (item.match(/shewang.net|pterclub.net|img4k.net|img.hdhome.org|img.hdchina.org/)) {
                 item = item.replace(/th.png/, 'png').replace(/md.png/, 'png');
             } else if (item.match(/beyondhd.co\/(images|cache)/)) {
@@ -11501,7 +11553,7 @@ function auto_feed() {
                 if (lst_type) {
                     if (lst_type.match(/remux/i)) {
                         raw_info.medium_sel = 'Remux';
-                    } else if (lst_type.match(/full\s*disc|^disc$|BD(25|50|66|100)/i)) {
+                    } else if (lst_type.match(/full\s*disc|\bdisc\b|\biso\b|BDMV|VIDEO_TS|BD(25|50|66|100)/i)) {
                         // Full Disc 先给 Blu-ray,后面 fill_raw_info 会按 UHD/2160p 自动升级成 UHD
                         raw_info.medium_sel = 'Blu-ray';
                     } else if (lst_type.match(/encode|bd\s*-?rip|br\s*-?rip/i)) {
@@ -11530,7 +11582,6 @@ function auto_feed() {
             var lst_descr_body = $('section.torrent-section').filter(function() {
                 return /description|描述/i.test($(this).find('h2.torrent-section__title').first().text());
             }).find('div.torrent-section__body');
-            hijack_unit3d_description_copy();
             var lst_imgs = '';
             try {
                 var lst_bbcode = get_unit3d_description_bbcode();
@@ -13970,7 +14021,6 @@ function auto_feed() {
         if (origin_site == 'BLU' || origin_site == 'Tik' || origin_site == 'Aither') {
             var mediainfo = '';
             var description_body = $('h2.panel__heading:contains("Description"), h2.panel__heading:contains("描述")').parent().next();
-            hijack_unit3d_description_copy();
             try {
                 var unit3d_bdinfos = [];
                 function append_unit3d_bdinfos(info) {
@@ -14019,7 +14069,7 @@ function auto_feed() {
                 if (unit3d_type) {
                     if (unit3d_type.match(/remux/i)) {
                         raw_info.medium_sel = 'Remux';
-                    } else if (unit3d_type.match(/full\s*disc|^disc$|BD(25|50|66|100)/i)) {
+                    } else if (unit3d_type.match(/full\s*disc|\bdisc\b|\biso\b|BDMV|VIDEO_TS|BD(25|50|66|100)/i)) {
                         // Full Disc: 先给 Blu-ray,后面 fill_raw_info 里会按 UHD/2160p 自动升级成 UHD
                         raw_info.medium_sel = 'Blu-ray';
                     } else if (unit3d_type.match(/encode|bd\s*-?rip|br\s*-?rip/i)) {
@@ -24588,6 +24638,24 @@ function auto_feed() {
                 el.dispatchEvent(new Event('input', { bubbles: true }));
                 el.dispatchEvent(new Event('change', { bubbles: true }));
             }
+            // assast Aither/LST 的 .torrent 上传框绑着站点自己的解析器(uploadExtension.hook),
+            // 种子文件一落地它就按文件名重新推断 type / resolution,推不出来就默认 WEB-DL,
+            // 把脚本填好的值盖掉。而 addTorrent 是异步的,必然晚于这里的赋值,所以要在文件落地后补填。
+            // 用户手动动过这个下拉(点开或键盘操作)就不再抢,以用户为准。
+            function keepAlpineSelect(idOrEl, value) {
+                var el = (typeof idOrEl === 'string') ? document.getElementById(idOrEl) : idOrEl;
+                if (!el || value === '' || value === null || value === undefined) return;
+                setAlpineSelect(el, value);
+                var user_touched = false;
+                $(el).on('mousedown keydown', function(){ user_touched = true; });
+                [800, 1600, 2600, 4000, 6000].forEach(function(delay){
+                    setTimeout(function(){
+                        if (user_touched) return;
+                        if (String(el.value) === String(value)) return;
+                        setAlpineSelect(el, value);
+                    }, delay);
+                });
+            }
             if (forward_site == 'BLU' || forward_site == 'Aither' || forward_site == 'LST') {
                 ['auto_tmdb_movie', 'auto_tmdb_tv', 'autoimdb', 'autotvdb', 'automal'].forEach(defuseAlpineInput);
             }
@@ -24726,19 +24794,43 @@ function auto_feed() {
                     source_box.value = 5;
                 }
             } else if (forward_site == 'Aither' || forward_site == 'LST') {
-                // assast Aither type 值: 1=Full Disc, 2=Remux, 3=Encode, 4=WEB-DL, 5=WEBRip, 6=HDTV, 7=Other
+                // assast Aither/LST type 值: 1=Full Disc, 2=Remux, 3=Encode, 4=WEB-DL, 5=WEBRip, 6=HDTV, 15=Other
                 // 必须用 setAlpineSelect 派发 change,Alpine 才会更新 reactive type 状态,
                 // 进而通过 x-show="types[type].name === 'Full Disc'" 显示 distributor/region/BDInfo
-                var aitherTypeVal = '4';
+                var aitherTypeVal = '';
                 switch(raw_info.medium_sel){
                     case 'UHD': case 'Blu-ray': aitherTypeVal = '1'; break;
                     case 'Remux': aitherTypeVal = '2'; break;
                     case 'Encode': aitherTypeVal = '3'; break;
                     case 'WEB-DL': aitherTypeVal = '4'; break;
-                    case 'HDTV':  aitherTypeVal = '6'; break;
+                    case 'HDTV': case 'UHDTV': aitherTypeVal = '6'; break;
+                }
+                // assast 以前这里的初值直接写死 '4',等于"凡是没匹配上的媒介一律当 WEB-DL",
+                // 原盘/DVD/媒介为空的情况全被误判成 WEB-DL。改成没把握就按证据重新判一次。
+                var aitherProbeText = [raw_info.name || '', raw_info.medium_sel || '',
+                                       raw_info.full_mediainfo || '', raw_info.descr || ''].join('\n');
+                if (raw_info.medium_sel == 'DVD') {
+                    // DVD 影碟原盘(VIDEO_TS / IFO / ISO / DVD5|9)算 Full Disc,DVDRip 算 Encode
+                    aitherTypeVal = /VIDEO_TS|\.IFO\b|\.VOB\b|\bDVD[59]\b|\bISO\b/i.test(aitherProbeText) ? '1' : '3';
+                }
+                if (!aitherTypeVal) {
+                    if (/DISC INFO|Disc Label|Disc Size|Playlist Report|\.mpls\b|BDMV|VIDEO_TS|\bBD(25|50|66|100)\b/i.test(aitherProbeText)) {
+                        aitherTypeVal = '1';
+                    } else if (/\bremux\b/i.test(aitherProbeText)) {
+                        aitherTypeVal = '2';
+                    } else if (/\bwebrip\b/i.test(aitherProbeText)) {
+                        aitherTypeVal = '5';
+                    } else if (/\bweb-?dl\b|\bwebdl\b/i.test(aitherProbeText)) {
+                        aitherTypeVal = '4';
+                    } else if (/\bhdtv\b/i.test(aitherProbeText)) {
+                        aitherTypeVal = '6';
+                    } else if (/x\.?26[45]|h\.?26[45]|bd-?rip|br-?rip|\bencode\b/i.test(aitherProbeText)) {
+                        aitherTypeVal = '3';
+                    }
+                    // 还是没证据就干脆不填,留给用户自己选,别再瞎默认成 WEB-DL
                 }
                 if (raw_info.name.match(/webrip/i)) aitherTypeVal = '5';
-                setAlpineSelect(source_box, aitherTypeVal);
+                keepAlpineSelect(source_box, aitherTypeVal);
 
                 // assast Aither Meta info: DV / HDR / HDR10+ 自动勾选
                 // 探测来源:mediainfo + descr + name,任一命中即勾选;HDR10+ 与 HDR 互斥(HDR10+ 优先),DV 独立可叠加
@@ -24826,6 +24918,12 @@ function auto_feed() {
                 standard_box.val(8);
             } else if (raw_info.name.match(/480i/i) || (raw_info.descr.match(/Scan type.*Interlaced/) && raw_info.descr.match(/Height.*?480 pixels/))) {
                 standard_box.val(9);
+            }
+
+            // assast 分辨率同理:Aither/LST 的种子解析器也会在文件落地后重推 resolution,
+            // 这里拿上面算完的最终值再守一会儿
+            if ((forward_site == 'Aither' || forward_site == 'LST') && standard_box.length) {
+                keepAlpineSelect(standard_box[0], standard_box.val());
             }
 
             const ver = ['AUS','CAN','CEE','CZE','ESP','EUR','FRA','GBR','GER','HKG','ITA','JPN','KOR','NOR','NLD','RUS','TWN','USA'];
