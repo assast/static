@@ -101,7 +101,7 @@
 // @require      https://update.greasyfork.org/scripts/444988/music-helper.js?version=1268106
 // @icon         https://kp.m-team.cc//favicon.ico
 // @run-at       document-end
-// @version      3.1.16
+// @version      3.1.17
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @grant        GM_setValue
@@ -534,48 +534,140 @@ function getFiletype(file) {
     return 'image/' + file;
 }
 
+function is_blu_image_url(url) {
+    try { return new URL(url).hostname.toLowerCase() === 'img.blutopia.cc'; }
+    catch (err) { return false; }
+}
+
+async function validate_blu_original(file, address) {
+    // 图床可能对下载请求返回有效的 400px PNG，检查文件签名还不足以确认是原图。
+    var bitmap = await window.createImageBitmap(file);
+    var width = bitmap.width, height = bitmap.height;
+    bitmap.close();
+    if (!width || !height || Math.max(width, height) <= 400) {
+        throw new Error('BLU 返回了 ' + width + '×' + height + ' 的小图，已停止转存；未获取到原图：' + address);
+    }
+}
+
 function getImage(url) {
     return new Promise(function(resolve, reject) {
-        var pathname = new URL(url).pathname;
-        var ext = pathname.match(/\.(jpg|jpeg|webp|png)$/i);
-        if (!ext) {
-            reject(new Error('无法识别图片格式：' + url));
-            return;
+        var parsed = new URL(url);
+        var ext = parsed.pathname.match(/\.(jpg|jpeg|webp|png)$/i);
+        if (!ext) { reject(new Error('无法识别图片格式：' + url)); return; }
+        var is_hdb = /^(?:t|i)\.hdbits\.org$/i.test(parsed.hostname);
+        var is_blu = is_blu_image_url(url);
+        if (is_hdb) parsed.hostname = 'i.hdbits.org';
+        if (is_blu) parsed.pathname = parsed.pathname.replace(/\.(?:md|th)(\.(?:jpe?g|png|webp))$/i, '$1');
+        var candidates = [parsed.href];
+        if (is_hdb && /^(?:jpe?g|png)$/i.test(ext[1])) {
+            // 缩略图的扩展名不一定等于原图；直接 GET 验证，不依赖可能被拒绝的 HEAD。
+            ['png', 'jpg'].forEach(function(extension) {
+                var candidate = new URL(parsed.href);
+                candidate.pathname = candidate.pathname.replace(/\.(?:jpe?g|png)$/i, '.' + extension);
+                if (candidates.indexOf(candidate.href) < 0) candidates.push(candidate.href);
+            });
         }
-        var filetype = getFiletype(ext[1].toLowerCase());
-        var name = pathname.split('/').pop();
-        GM_xmlhttpRequest({
-            method: 'GET',
-            url: url,
-            responseType: 'blob',
-            timeout: 30000,
-            onload: function(response) {
-                if (response.status !== 200 || !response.response || !response.response.size) {
-                    reject(new Error('图片下载失败（HTTP ' + response.status + '）：' + url));
-                    return;
-                }
-                try {
-                    resolve(new window.File([response.response], name, { type: filetype }));
-                } catch (err) {
-                    reject(err);
-                }
-            },
-            onerror: function() { reject(new Error('图片下载网络错误：' + url)); },
-            ontimeout: function() { reject(new Error('图片下载超时：' + url)); },
-            onabort: function() { reject(new Error('图片下载已取消：' + url)); }
-        });
+        function failure(reason, address) {
+            reject(new Error(reason + '：' + address));
+        }
+        function download(index) {
+            var address = candidates[index];
+            function invalid(reason) {
+                if (index + 1 < candidates.length) { download(index + 1); return; }
+                failure(reason, address);
+            }
+            var request = {
+                method: 'GET',
+                url: address,
+                responseType: 'arraybuffer',
+                timeout: 30000,
+                onload: async function(response) {
+                    if (response.status !== 200) {
+                        if (response.status === 404) { invalid('图片不存在（HTTP 404）'); return; }
+                        var reason = '图片下载失败（HTTP ' + response.status + '）';
+                        if (is_hdb && (response.status === 401 || response.status === 403)) {
+                            reason += '，请先在当前浏览器打开这条 HDB 原图链接，确认能正常显示后再重试';
+                        }
+                        failure(reason, address);
+                        return;
+                    }
+                    try {
+                        var data = response.response;
+                        // 兼容脚本管理器返回 ArrayBuffer、TypedArray 或 Blob 的情况。
+                        var buffer = data && typeof data.arrayBuffer === 'function' ? await data.arrayBuffer() : data;
+                        var bytes = ArrayBuffer.isView(buffer)
+                            ? new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+                            : Object.prototype.toString.call(buffer) === '[object ArrayBuffer]' ? new Uint8Array(buffer) : null;
+                        if (!bytes || !bytes.length) { invalid('图片下载返回空数据或不支持的数据格式'); return; }
+                        var type = '';
+                        if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
+                            && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a) type = 'png';
+                        else if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) type = 'jpeg';
+                        else if (bytes.length >= 12 && String.fromCharCode.apply(null, bytes.subarray(0, 4)) === 'RIFF'
+                            && String.fromCharCode.apply(null, bytes.subarray(8, 12)) === 'WEBP') type = 'webp';
+                        if (!type) {
+                            invalid('返回内容不是有效图片，可能是验证页或错误页面');
+                            return;
+                        }
+                        var name = new URL(address).pathname.split('/').pop().replace(/\.[^.]+$/, '.' + (type === 'jpeg' ? 'jpg' : type));
+                        var file = new window.File([bytes], name, { type: getFiletype(type) });
+                        if (is_blu) await validate_blu_original(file, address);
+                        resolve(file);
+                    } catch (err) {
+                        failure('图片数据读取失败（' + err.message + '）', address);
+                    }
+                },
+                onerror: function() { failure('图片下载网络错误', address); },
+                ontimeout: function() { failure('图片下载超时', address); },
+                onabort: function() { failure('图片下载已取消', address); }
+            };
+            if (is_hdb) {
+                // 在 Pixhost 等外站拉取时使用 HDB 的来源及分区 Cookie，不使用图床页面的分区。
+                request.headers = { 'Referer': 'https://hdbits.org/' };
+                request.cookiePartition = { topLevelSite: 'https://hdbits.org' };
+                request.anonymous = false;
+            }
+            if (is_blu) {
+                // BLU 按 Sec-Fetch-Dest 区分响应；按打开原图的导航条件请求，禁止复用缩略图缓存。
+                request.headers = {
+                    'Referer': 'https://img.blutopia.cc/',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                    'Sec-Fetch-Dest': 'document',
+                    'Sec-Fetch-Mode': 'navigate',
+                    'Sec-Fetch-Site': 'same-origin',
+                    'Sec-Fetch-User': '?1',
+                    'Cache-Control': 'no-cache'
+                };
+                request.fetch = false;
+                request.nocache = true;
+                request.cookiePartition = { topLevelSite: 'https://blutopia.cc' };
+                request.anonymous = false;
+            }
+            GM_xmlhttpRequest(request);
+        }
+        download(0);
     });
 }
 
-// HDB/外站图片下载前统一解析原图地址，避免把 t.hdbits.org 缩略图或错误扩展名传给图床。
+// 下载并验证真正的原图；限制并发，避免批量 HEAD/GET 同时打向 HDB。
 function getImageFiles(urls) {
-    return resolve_hdbits_image_urls(urls).then(function(resolved_urls) {
-        return Promise.all(resolved_urls.filter(function(url) {
-            return /\.(?:jpg|jpeg|webp|png)(?:[?#]|$)/i.test(url);
-        }).map(function(url) {
-            return getImage(url);
-        }));
+    var images = (urls || []).filter(function(url) {
+        return typeof url === 'string' && /^https?:\/\//i.test(url) && /\.(?:jpg|jpeg|webp|png)(?:[?#]|$)/i.test(url);
     });
+    if (!images.length) return Promise.reject(new Error('没有可下载的图片链接'));
+    var files = new Array(images.length), next = 0, failed = false;
+    async function worker() {
+        while (!failed && next < images.length) {
+            var index = next++;
+            try {
+                files[index] = await getImage(images[index]);
+            } catch (err) {
+                failed = true;
+                throw err;
+            }
+        }
+    }
+    return Promise.all(Array.from({ length: Math.min(3, images.length) }, worker)).then(function() { return files; });
 }
 
 function report_image_pull_error(err) {
@@ -921,6 +1013,7 @@ const apis = ['https://doubaninfo.com/api/v1_douban.php', 'https://ptgen.tju.pt/
 var douban_key = GM_getValue('douban_key') === undefined ? '': GM_getValue('douban_key');
 var api_chosen = GM_getValue('api_chosen') === undefined ? 0: GM_getValue('api_chosen');
 var tldomain = GM_getValue('tldomain') === undefined ? 0: GM_getValue('tldomain');
+// IMDb 转豆瓣 ID：0 豆瓣 API，1 豆瓣爬取，2 豆影 API。
 var imdb2db_chosen = GM_getValue('imdb2db_chosen') === undefined ? 0: GM_getValue('imdb2db_chosen');
 
 //用来转存海报使用的ptpimg的key,打开首页即可获取
@@ -1738,16 +1831,57 @@ function ptp_send_images(urls, api_key) {
     });
 };
 
+function pix_upload_blu_image(url) {
+    // Pixhost 的 remote 接口无法带上 BLU 原图的请求条件；下载并校验后上传文件。
+    return getImage(url).then(function(file) {
+        return new Promise(function(resolve, reject) {
+            var data = new FormData();
+            data.append('img', file, file.name);
+            data.append('content_type', '0');
+            data.append('max_th_size', '350');
+            GM_xmlhttpRequest({
+                method: 'POST',
+                url: 'https://api.pixhost.to/images',
+                headers: { 'Accept': 'application/json' },
+                data: data,
+                timeout: 60000,
+                onload: function(response) {
+                    if (response.status !== 200) { reject(new Error('Pixhost 文件上传失败（HTTP ' + response.status + '）')); return; }
+                    try {
+                        var item = JSON.parse(response.responseText);
+                        if (!item || typeof item.show_url !== 'string' || typeof item.th_url !== 'string'
+                            || !/^https?:\/\//i.test(item.show_url) || !/^https?:\/\//i.test(item.th_url)) {
+                            throw new Error('返回图片地址不完整');
+                        }
+                        resolve([`[url=${item.show_url}][img]${item.th_url}[/img][/url]`]);
+                    } catch (err) { reject(new Error('Pixhost 文件上传结果解析失败：' + err.message)); }
+                },
+                onerror: function() { reject(new Error('Pixhost 文件上传网络错误')); },
+                ontimeout: function() { reject(new Error('Pixhost 文件上传超时')); },
+                onabort: function() { reject(new Error('Pixhost 文件上传已取消')); }
+            });
+        });
+    });
+}
+
 function pix_send_images(urls) {
     var total = urls.length;
     if (!total) return Promise.reject(new Error('缺少要转存的图片'));
     var batchSize = 6;  // pixhost 单个画廊最多 6 张
     var batches = [];
 
-    // 分批
-    for (var i = 0; i < total; i += batchSize) {
-        batches.push(urls.slice(i, i + batchSize));
-    }
+    // BLU 单独走文件上传；其他图床保留原有批量 remote 转存，并维持输入顺序。
+    var remoteBatch = [];
+    urls.forEach(function(url) {
+        if (is_blu_image_url(url)) {
+            if (remoteBatch.length) { batches.push(remoteBatch); remoteBatch = []; }
+            batches.push([url]);
+        } else {
+            remoteBatch.push(url);
+            if (remoteBatch.length === batchSize) { batches.push(remoteBatch); remoteBatch = []; }
+        }
+    });
+    if (remoteBatch.length) batches.push(remoteBatch);
 
     var completed = 0;
     var results = [];
@@ -1759,6 +1893,7 @@ function pix_send_images(urls) {
 
     // 单批次上传
     function uploadBatch(batchUrls) {
+        if (batchUrls.length === 1 && is_blu_image_url(batchUrls[0])) return pix_upload_blu_image(batchUrls[0]);
         return new Promise(function(resolve, reject) {
             GM_xmlhttpRequest({
                 "method": "POST",
@@ -3210,8 +3345,58 @@ function get_source_sel_from_descr(descr){
     return region;
 }
 
+function get_douying_douban_info(imdb_url) {
+    return new Promise(function(resolve, reject) {
+        var imdb = String(imdb_url || '').match(/tt\d+/i);
+        if (!imdb) { reject(new Error('缺少有效的 IMDb ID，无法通过豆影获取豆瓣 ID')); return; }
+        var key = String(douban_key || '').trim();
+        if (!key) { reject(new Error('请先在脚本设置中填写并保存豆影 API Key')); return; }
+        GM_xmlhttpRequest({
+            method: 'GET',
+            url: apis[0] + '?url=' + encodeURIComponent(imdb[0].toLowerCase()) + '&douban=1',
+            headers: { 'Accept': 'application/json', 'X-API-KEY': key },
+            timeout: 20000,
+            onload: function(response) {
+                if (response.status !== 200) {
+                    var reason = '豆影获取豆瓣 ID 失败（HTTP ' + response.status + '）';
+                    if (response.status === 403) reason += '，请检查 API Key 和剩余额度';
+                    if (response.status === 429) reason += '，请求过于频繁，请稍后重试';
+                    reject(new Error(reason));
+                    return;
+                }
+                try {
+                    var data = JSON.parse(response.responseText);
+                    // &douban 可能兜底返回 TMDB；只有明确的豆瓣条目才能用于豆瓣 subject 链接。
+                    if (!data || data.success !== true || data.site !== 'douban' || !/^[1-9]\d{4,9}$/.test(String(data.sid || ''))) {
+                        reject(new Error('豆影未返回对应的豆瓣 ID，可能尚未收录该条目'));
+                        return;
+                    }
+                    if (data.imdb_id && String(data.imdb_id).toLowerCase() !== imdb[0].toLowerCase()) {
+                        reject(new Error('豆影返回的 IMDb ID 与当前条目不符，未采用该豆瓣链接'));
+                        return;
+                    }
+                    resolve(data);
+                } catch (err) { reject(new Error('豆影返回的内容不是有效的 JSON 数据')); }
+            },
+            onerror: function() { reject(new Error('豆影获取豆瓣 ID 网络错误')); },
+            ontimeout: function() { reject(new Error('豆影获取豆瓣 ID 超时，请稍后重试')); },
+            onabort: function() { reject(new Error('豆影获取豆瓣 ID 已取消')); }
+        });
+    });
+}
+
+function get_douban_url_from_douying(raw_info) {
+    return get_douying_douban_info(raw_info.url).then(function(data) {
+        raw_info.dburl = douban_prex + data.sid + '/';
+        return raw_info;
+    });
+}
+
 //为获取豆瓣信息提供链接简化 promise
 function create_site_url_for_douban_info(raw_info, is_douban_search_needed){
+    if (imdb2db_chosen == 2) {
+        return is_douban_search_needed ? get_douban_url_from_douying(raw_info) : Promise.resolve(raw_info);
+    }
     if (imdb2db_chosen == 0) {
         var p = new Promise(function(resolve, reject){
             if (is_douban_search_needed){
@@ -4543,12 +4728,14 @@ function init_buttons_for_transfer(container, site, mode, raw_info) {
     search_button.style.marginLeft = '12px';
     search_button.style.marginRight = '4px';
     search_button.value = "检索名称";
+    search_button.title = '默认打开豆瓣搜索；勾选 API 时在下方列出候选条目';
     search_button.id = 'search_button';
     container.appendChild(search_button);
 
     var checkBox=document.createElement("input");
     checkBox.setAttribute("type","checkbox");
     checkBox.setAttribute("id",'douban_api');
+    checkBox.title = '仅控制“检索名称”的搜索方式，不改变简介获取来源';
     var douban_text = document.createTextNode('API');
     container.append(checkBox);
     container.append(douban_text);
@@ -4562,7 +4749,20 @@ function init_buttons_for_transfer(container, site, mode, raw_info) {
     checkBox2.setAttribute("type", "checkbox");
     checkBox2.setAttribute("id", 'douying_api');
     checkBox2.style.margin = '0 4px 0 0';
-                    checkBox2.checked = false;
+    checkBox2.checked = api_chosen == 0;
+    checkBox2.title = '“点击获取”的简介来源：勾选使用豆影，取消使用豆瓣页面爬取；切换后自动保存';
+    checkBox2.addEventListener('change', function() {
+        api_chosen = checkBox2.checked ? 0 : 3;
+        GM_setValue('api_chosen', api_chosen);
+    });
+    // 在设置页切换节点后，返回这个页面时同步勾选状态和“点击获取”使用的节点。
+    window.addEventListener('focus', function() {
+        var saved_api = GM_getValue('api_chosen');
+        if (saved_api !== undefined) {
+            api_chosen = saved_api;
+            checkBox2.checked = api_chosen == 0;
+        }
+    });
 
     var douying_text = document.createTextNode('豆影');
 
@@ -6027,7 +6227,68 @@ if (pt_icos === undefined || if_new_site_added) {
     pt_icos = JSON.parse(decodeURIComponent(escape(atob(pt_icos))));
 }
 
+function normalize_douban_display_numbers(data) {
+    var average = parseFloat(data.average);
+    var votes = parseInt(String(data.votes || '').replace(/,/g, ''), 10);
+    var year = parseInt(data.year, 10);
+    data.average = Number.isFinite(average) && average > 0 && average <= 10 ? average : '';
+    data.votes = Number.isFinite(votes) && votes >= 0 ? votes : '';
+    data.year = Number.isFinite(year) && year > 0 ? year : '';
+    return data;
+}
+
+function douying_to_douban_display_data(data) {
+    function text(value) {
+        return Array.isArray(value) ? value.join(' / ') : value == null ? '' : String(value);
+    }
+    return normalize_douban_display_numbers({
+        id: String(data.sid),
+        link: douban_prex + data.sid + '/',
+        title: text(data.chinese_title || data.title),
+        image: text(data.dbposter || data.poster || data.cover),
+        year: data.year,
+        aka: text(data.aka),
+        average: data.douban_rating_average || data.douban_rating,
+        votes: data.douban_votes,
+        genre: text(data.genre),
+        region: text(data.region),
+        director: text(data.director),
+        language: text(data.language),
+        releaseDate: text(data.release_date),
+        runtime: text(data.runtime || data.duration),
+        cast: text(data.cast),
+        summary: text(data.summary),
+        imdb: text(data.imdb_id)
+    });
+}
+
+function update_douban_lookup_input(douban_url) {
+    $('#input_box').wait(function() {
+        $('#input_box').val(douban_url);
+        $('#ptgen').attr('href', douban_url);
+    });
+}
+
 function getData(imdb_url, callback) {
+    function failed(err) {
+        var message = err && err.message ? err.message : '未获取到豆瓣信息';
+        console.warn(message);
+        callback({ data: null, error: message });
+    }
+    // 外站标题、评分、简介与“IMDb 到豆瓣 ID”使用同一获取方式。
+    if (imdb2db_chosen == 2) {
+        return get_douying_douban_info(imdb_url).then(function(data) {
+            var display = douying_to_douban_display_data(data);
+            update_douban_lookup_input(display.link);
+            callback({ data: display });
+        }, failed);
+    }
+    if (imdb2db_chosen == 0) {
+        return create_site_url_for_douban_info({ url: imdb_url, dburl: '' }, true).then(function(info) {
+            update_douban_lookup_input(info.dburl);
+            getDataFromDou(info.dburl, callback);
+        }, failed);
+    }
     var imdb_id = imdb_url.match(/tt\d+/)[0];
     var search_url = 'https://m.douban.com/search/?query=' + imdb_id + '&type=movie';
     console.log('正在获取数据……');
@@ -6072,7 +6333,7 @@ function getData(imdb_url, callback) {
                 } catch(e) {
                     raw_data.summary = '';
                 }
-                data.data = raw_data;
+                data.data = normalize_douban_display_numbers(raw_data);
                 callback(data)
             });
         }
@@ -6081,6 +6342,7 @@ function getData(imdb_url, callback) {
 
 function getDataFromDou(douban_url, callback) {
     getDoc(douban_url, null, function(html) {
+        if (!html || html === 'error') { callback({ data: null, error: '获取豆瓣页面失败' }); return; }
         var raw_data = {};
         var data = {'data': {}};
         raw_data.title = $("title", html).text().replace("(豆瓣)", "").trim();
@@ -6112,7 +6374,7 @@ function getDataFromDou(douban_url, callback) {
         } catch(e) {
             raw_data.summary = '';
         }
-        data.data = raw_data;
+        data.data = normalize_douban_display_numbers(raw_data);
         callback(data)
     });
 }
@@ -8845,6 +9107,7 @@ if (site_url.match(/^https:\/\/.*?usercp.php\?action=personal(#setting|#ptgen|#m
         $('#setting').append(`<b>选择IMDb到豆瓣ID的获取方式(适用于外站)：</b>`);
         $('#setting').append(`<input type="radio" name="imdb2db" value="0">豆瓣API`);
         $('#setting').append(`<input type="radio" name="imdb2db" value="1">豆瓣爬取`);
+        $('#setting').append(`<input type="radio" name="imdb2db" value="2" title="使用下方已保存的豆影 API Key，将 IMDb ID 转为豆瓣 ID">豆影API`);
         $(`input:radio[name="imdb2db"][value="${imdb2db_chosen}"]`).prop('checked', true);
         $('#setting').append(`<br><br>`);
 
@@ -16207,6 +16470,7 @@ function auto_feed() {
                 })
                 .catch(function(err){
                     douban_button.value = '获取失败';
+                    if (imdb2db_chosen == 2 && err && err.message) alert(err.message);
                     if (raw_info.dburl) {
                         window.open(raw_info.dburl, target="_blank");
                     } else if (raw_info.url) {
@@ -16230,33 +16494,10 @@ function auto_feed() {
                 if (raw_info.zh_name) {
                     search_name = raw_info.zh_name;
                 }
-                if ($('#douying_api').prop('checked')){
-                    if (!douban_key) {
-                        douban_key = prompt('请输入豆影API密钥，获取方法见：<br>https://doubaninfo.com/user/dashboard.php，输入后方可使用！');
-                        GM_setValue('douban_key', douban_key);
-                    }
-                    const url_prex = 'https://doubaninfo.com/api/v1_douban.php?url=';
-                    var search_url = url_prex + search_name + '&key=' + douban_key + '&format=bbcode&douban';
-                    var textarea = document.getElementById('textarea');
-                    getDoc(search_url, null, function(doc){
-                        var data = $('body', doc).text();
-                        console.log(data);
-                        if (data) {
-                            textarea.value = data;
-                            after_douban(data, false);
-                            try{
-                                raw_info.dburl = match_link('douban', data) || normalize_douban_url(data.match(/http(s*):\/\/.*?douban.com\/subject\/(\d+)/i)[0]);
-                                $('#input_box').val(raw_info.dburl);
-                            } catch(err){
-                                console.log(err);
-                            }
-                        } else {
-                            textarea.value = "暂时没有搜索结果！！";
-                        }
-                    });
-                } else if ($('#douban_api').prop('checked')){
+                // 检索名称只由 API 选项控制；豆影勾选框仅切换简介获取来源。
+                if ($('#douban_api').prop('checked')){
                     const url_prex = 'https://movie.douban.com/j/subject_suggest?q=';
-                    var search_url = url_prex + search_name;
+                    var search_url = url_prex + encodeURIComponent(search_name);
                     var textarea = document.getElementById('textarea');
                     getJson(search_url, null, function(data){
                         if (data.length > 0) {
@@ -16270,7 +16511,7 @@ function auto_feed() {
                     });
 
                 } else {
-                    var search_url = 'https://search.douban.com/movie/subject_search?search_text=' + search_name;
+                    var search_url = 'https://search.douban.com/movie/subject_search?search_text=' + encodeURIComponent(search_name);
                     if (raw_info.type == '电影' && raw_info.url){
                         search_url = 'https://search.douban.com/movie/subject_search?search_text=' + raw_info.url.match(/tt\d+/)[0];
                     }
